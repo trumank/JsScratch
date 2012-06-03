@@ -3,18 +3,14 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 		<title>JsScratch</title>
-		<link href="/style.css" rel="stylesheet" type="text/css"/>
-		<link href="project.css" rel="stylesheet" type="text/css"/>
-		<!--<script type="text/javascript" src="http://chirp.scratchr.org/dl/experimental/JsMorphic/morphic.js"></script>-->
 		<script type="text/javascript" src="./js/morphic.js"></script>
 		<script type="text/javascript" src="./js/morphicchanges.js"></script>
 		<script type="text/javascript" src="./js/jsscratch.js"></script>
 		<script type="text/javascript">
 			var worldMorph, player, version = "JsScratch Nov 30, 2011", urlVars = getUrlVariables();
-			var projectUrl = urlVars['project'] ? 'getfile.php?f=' + urlVars['project'] : null;
+			var projectUrl = urlVars['project'] ? urlVars['project'] : null;
 			window.onload = function()
 			{
-				document.getElementById('path').setAttribute('value', 'project=' + encodeURIComponent(projectUrl));
 				worldMorph = new WorldMorph(document.getElementById('javascriptplayer'), false);
 				onbeforeunload = function (e){};
 				worldMorph.isDevMode = true;
@@ -64,62 +60,15 @@
 					s64 += m == 1 ? '==' : '=';
 				return s64;
 			}
-			function setName(s){setElementText(s, 'name');}
-			function setNotes(s){setElementText(s, 'notes');}
-			function setHistory(s){setElementText(s, 'history');}
-			function setElementText(s, element)
-			{
-				if(s) document.getElementById(element).innerHTML = s.replace(/\r/g, '<br/>');
-			}
-			function toggle(id)
-			{
-				var element = document.getElementById(id);
-				element.style.display = (element.style.display == 'none' ? '' : 'none');
-			}
+			function setName(s){}
+			function setNotes(s){}
+			function setHistory(s){}
+			function setElementText(s, element){}
 		</script>
 	</head>
 	<body>
-		<div id="container">
-			<ul id="navbar">
-				<li><a href="/">JsScratch</a></li>
-				<li><a href="/player">Player</a></li>
-				<li><a href="/forums">Forums</a></li>
-				<li><a href="/contact">Contact</a></li>
-			</ul>
-			<br/>
-			<div id="content">
-				<div style="text-align:center;">
-					<h2>JsScratch</h2>
-				</div>
-				<div style="width:780px;margin-left:auto;margin-right:auto;">
-					<div id="main">
-						<div class="container">
-							<b id="name">Loading...</b>
-							<br/>
-							<div style="text-align:center;">
-								<button type="button" onclick="toggle('flashplayer')">Toggle flash player</button>
-								<object id="flashplayer" width="482" height="387" style="display:none" type="application/x-shockwave-flash" data="PlayerOnly.swf">
-									<param name="allowScriptAccess" value="sameDomain">
-									<param id="path" name="flashvars" value="">
-								</object>
-								<br/>
-								<canvas id="javascriptplayer" width="482" height="387" style="user-select: none;">
-									Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>
-								</canvas>
-								<p id="history"></p>
-							</div>
-						</div>
-					</div>
-					<div id="sidebar">
-						<div class="container">
-						<b>Project Notes</b>
-						<p id="notes"></p>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<br/>
-		<div style="text-align:center;"><a href="http://www.000webhost.com/" target="_blank"><img src="http://www.000webhost.com/images/80x15_powered.gif" alt="Web Hosting" style="border:0;"/></a></div>
+		<canvas id="javascriptplayer" width="482" height="387" style="user-select: none;" tabindex="1">
+			Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>
+		</canvas>
 	</body>
 </html>
