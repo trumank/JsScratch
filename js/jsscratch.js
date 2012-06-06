@@ -689,27 +689,13 @@ PlayerFrameMorph.prototype.setup = function () {
 };
 
 PlayerFrameMorph.prototype.read = function (file) {
-	var vars = [], hash, hashes = this.loader.xhr.getResponseHeader('Content-Disposition').split(';'), i;
-	for(i = 0; i < hashes.length; i++) {
-		hash = hashes[i].split('=');
-		if (hash[1])
-			vars[hash[0]] = hash[1].substr(1, hash[1].length - 2);
-	}
-
-	setName(vars['filename']);
 	if (this.stage) {
 		this.stage.destroy();
 	}
-	//try {
-		var objectStream = new ObjectStream(new BinaryStream(file));
-		this.info = objectStream.nextObject();
-		setNotes(this.info.at("comment"));
-		setHistory(this.info.at("history"));
-		var stage = objectStream.nextObject()
-		this.setStage(stage);
-	//} catch (e) {
-	//	alert(e);
-	//}
+	var objectStream = new ObjectStream(new BinaryStream(file));
+	this.info = objectStream.nextObject();
+	var stage = objectStream.nextObject()
+	this.setStage(stage);
 	worldMorph.fullChanged();
 	worldMorph.drawNew();
 	worldMorph.fullChanged();
@@ -936,14 +922,21 @@ ImageMedia.prototype.initFields = function (fields, version) {
 };
 
 ImageMedia.prototype.initBeforeLoad = function  () {
-	if(this.jpegBytes)
-		this.form.base64 = 'data:image/jpeg;base64,' + arrayToBase64(this.jpegBytes);
-	if (this.form.base64)
+	if(this.jpegBytes) {
+		var str = '';
+		for (var i = 0; i < this.jpegBytes.length; i++) {
+			str += String.fromCharCode(this.jpegBytes[i]);
+		}
+		this.form.base64 = 'data:image/jpeg;base64,' + btoa(str);
+	}
+	if (this.form.base64) {
 		this.base64 = this.form.base64;
-	if (!this.base64)
-		this.image = null;
-	else
+	}
+	if (this.base64) {
 		this.image = newImage(this.base64);
+	} else {
+		this.image = null;
+	}
 };
 
 // SoundMedia ////////////////////////////////////////////////////////

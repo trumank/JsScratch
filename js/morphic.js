@@ -69,7 +69,7 @@
 	contextual overview:
 
 	Color
-	Node
+	MorphicNode
 		Morph
 			BlinkerMorph
 				CursorMorph
@@ -114,7 +114,7 @@
 	Color
 	Point
 	Rectangle
-	Node
+	MorphicNode
 	Morph
 	ShadowMorph
 	HandleMorph
@@ -1689,45 +1689,45 @@ Rectangle.prototype.asArray_xywh = function () {
 
 // Nodes ///////////////////////////////////////////////////////////////
 
-// Node instance creation:
+// MorphicNode instance creation:
 
-function Node(parent, childrenArray) {
+function MorphicNode(parent, childrenArray) {
 	this.init(parent || null, childrenArray || []);
 }
 
-Node.prototype.init = function (parent, childrenArray) {
+MorphicNode.prototype.init = function (parent, childrenArray) {
 	this.parent = parent || null;
 	this.children = childrenArray || [];
 };
 
-// Node string representation: e.g. 'a Node[3]'
+// MorphicNode string representation: e.g. 'a MorphicNode[3]'
 
-Node.prototype.toString = function () {
-	return 'a Node' + '[' + this.children.length.toString() + ']';
+MorphicNode.prototype.toString = function () {
+	return 'a MorphicNode' + '[' + this.children.length.toString() + ']';
 };
 
-// Node accessing:
+// MorphicNode accessing:
 
-Node.prototype.addChild = function (aNode) {
+MorphicNode.prototype.addChild = function (aNode) {
 	this.children.push(aNode);
 	aNode.parent = this;
 };
 
-Node.prototype.addChildFirst = function (aNode) {
+MorphicNode.prototype.addChildFirst = function (aNode) {
 	this.children.splice(0, null, aNode);
 	aNode.parent = this;
 };
 
-Node.prototype.removeChild = function (aNode) {
+MorphicNode.prototype.removeChild = function (aNode) {
 	var idx = this.children.indexOf(aNode);
 	if (idx !== -1) {
 		this.children.splice(idx, 1);
 	}
 };
 
-// Node functions:
+// MorphicNode functions:
 
-Node.prototype.root = function () {
+MorphicNode.prototype.root = function () {
 	if (this.parent === null) {
 		return this;
 	} else {
@@ -1735,7 +1735,7 @@ Node.prototype.root = function () {
 	}
 };
 
-Node.prototype.depth = function () {
+MorphicNode.prototype.depth = function () {
 	if (this.parent === null) {
 		return 0;
 	} else {
@@ -1743,7 +1743,7 @@ Node.prototype.depth = function () {
 	}
 };
 
-Node.prototype.allChildren = function () {
+MorphicNode.prototype.allChildren = function () {
 	// includes myself
 	var result = [this];
 	this.children.forEach(function (child) {
@@ -1752,7 +1752,7 @@ Node.prototype.allChildren = function () {
 	return result;
 };
 
-Node.prototype.forAllChildren = function (aFunction) {
+MorphicNode.prototype.forAllChildren = function (aFunction) {
 	if (this.children.length > 0) {
 		this.children.forEach(function (child) {
 			child.forAllChildren(aFunction);
@@ -1761,7 +1761,7 @@ Node.prototype.forAllChildren = function (aFunction) {
 	aFunction.call(null, this);
 };
 
-Node.prototype.allLeafs = function () {
+MorphicNode.prototype.allLeafs = function () {
 	var result = [];
 	this.allChildren().forEach(function (element) {
 		if (element.children.length === 0) {
@@ -1771,7 +1771,7 @@ Node.prototype.allLeafs = function () {
 	return result;
 };
 
-Node.prototype.allParents = function () {
+MorphicNode.prototype.allParents = function () {
 	// includes myself
 	var result = [this];
 	if (this.parent !== null) {
@@ -1780,7 +1780,7 @@ Node.prototype.allParents = function () {
 	return result;
 };
 
-Node.prototype.siblings = function () {
+MorphicNode.prototype.siblings = function () {
 	var myself = this;
 	if (this.parent === null) {
 		return [];
@@ -1791,7 +1791,7 @@ Node.prototype.siblings = function () {
 	}
 };
 
-Node.prototype.parentThatIsA = function (constructor) {
+MorphicNode.prototype.parentThatIsA = function (constructor) {
 	// including myself
 	if (this instanceof constructor) {
 		return this;
@@ -1804,7 +1804,7 @@ Node.prototype.parentThatIsA = function (constructor) {
 	}
 };
 
-Node.prototype.parentThatIsAnyOf = function (constructors) {
+MorphicNode.prototype.parentThatIsAnyOf = function (constructors) {
 	// including myself
 	var	yup = false,
 		myself = this;
@@ -1841,11 +1841,11 @@ var SliderMorph;
 var ScrollFrameMorph;
 var InspectorMorph;
 
-// Morph inherits from Node:
+// Morph inherits from MorphicNode:
 
-Morph.prototype = new Node();
+Morph.prototype = new MorphicNode();
 Morph.prototype.constructor = Morph;
-Morph.uber = Node.prototype;
+Morph.uber = MorphicNode.prototype;
 
 // Morph settings:
 

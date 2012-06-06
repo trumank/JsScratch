@@ -7,21 +7,24 @@
 		<script type="text/javascript" src="./js/morphicchanges.js"></script>
 		<script type="text/javascript" src="./js/jsscratch.js"></script>
 		<script type="text/javascript">
-			var worldMorph, player, version = "JsScratch Nov 30, 2011", urlVars = getUrlVariables();
-			var projectUrl = urlVars['project'] ? urlVars['project'] : null;
+			var worldMorph, player, version = "JsScratch May 16, 2012", urlVars = getUrlVariables();
+			var projectUrl = urlVars['project'] ? 'getfile.php?f=' + urlVars['project'] : null;
 			window.onload = function()
 			{
 				worldMorph = new WorldMorph(document.getElementById('javascriptplayer'), false);
-				onbeforeunload = function (e){};
+				onbeforeunload = null;
 				worldMorph.isDevMode = true;
 				player = new PlayerFrameMorph();
 				worldMorph.add(player);
 				player.setup();
-				setInterval(function(){worldMorph.doOneCycle()}, 1);
-				document.onselectstart = function(){ return false; };
+				setInterval(function () {
+					worldMorph.doOneCycle();
+				}, 0);
+				document.onselectstart = function (e) {
+					e.preventDefault();
+				};
 			}
-			function getUrlVariables()
-			{
+			function getUrlVariables() {
 				var vars = [], hash;
 				var hashes = window.location.search.substr(1).split('&');
 				for(var i = 0; i < hashes.length; i++) {
@@ -30,45 +33,13 @@
 				}
 				return vars;
 			}
-			function toBase64(str)
-			{
-				var bits = '', base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', s64 = '', num, zero = '00000000';
-				for (var i = 0; i < str.length; i++) {
-					num = str.charCodeAt(i).toString(2);
-					bits += zero.substr(0, 8 - num.length) + num;
-				}
-				bits = bits.match(/.{1,6}/g);
-				for (var i = 0; i < bits.length; i++)
-					s64 += base64chars[parseInt(bits[i], 2)];
-				var m = str.length % 3;
-				if (m != 0)
-					s64 += m == 1 ? '==' : '=';
-				return s64;
-			}
-			function arrayToBase64(arr)
-			{
-				var bits = '', base64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', s64 = '', num, zero = '00000000';
-				for (var i = 0; i < arr.length; i++) {
-					num = arr[i].toString(2);
-					bits += zero.substr(0, 8 - num.length) + num;
-				}
-				bits = bits.match(/.{1,6}/g);
-				for (var i = 0; i < bits.length; i++)
-					s64 += base64chars[parseInt(bits[i], 2)];
-				var m = arr.length % 3;
-				if (m != 0)
-					s64 += m == 1 ? '==' : '=';
-				return s64;
-			}
-			function setName(s){}
-			function setNotes(s){}
-			function setHistory(s){}
-			function setElementText(s, element){}
 		</script>
 	</head>
 	<body>
 		<canvas id="javascriptplayer" width="482" height="387" style="user-select: none;" tabindex="1">
 			Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>
 		</canvas>
+		<br/>
+		<textarea id="log" rows="10" style="width: 482px;"></textarea>
 	</body>
 </html>
