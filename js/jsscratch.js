@@ -1,4 +1,4 @@
-// LoaderMorph //////////////////////////////////////////////////////////////
+// LoaderMorph ////////////////////////////////////////////
 var LoaderMorph;
 
 LoaderMorph.prototype = new Morph();
@@ -61,7 +61,7 @@ LoaderMorph.prototype.drawNew = function () {
 };
 
 
-// ProgressMorph //////////////////////////////////////////////////////////////
+// ProgressMorph //////////////////////////////////////////
 var ProgressMorph;
 
 ProgressMorph.prototype = new BoxMorph();
@@ -117,7 +117,7 @@ ProgressMorph.prototype.setProgress = function (num) {
 };
 
 
-// Dictionary //////////////////////////////////////////////////////////////
+// Dictionary /////////////////////////////////////////////
 
 function Dictionary(keys, values) {
 	this.obj = {};
@@ -138,7 +138,7 @@ Dictionary.prototype.put = function (key, value) {
 };
 
 
-// Form //////////////////////////////////////////////////////////////
+// Form ///////////////////////////////////////////////////
 
 function Form(width, height, depth, offset, bits, colors) {
 	this.width = width;
@@ -275,355 +275,7 @@ Form.prototype.setImageData = function (data) {
 }
 
 
-// FieldStream //////////////////////////////////////////////////////////////
-
-function FieldStream(fields) {
-	this.fields = fields;
-	this.index = 0;
-}
-
-FieldStream.prototype.nextField = function () {
-	this.index += 1;
-	return this.fields[this.index - 1];
-};
-
-
-// Ref /////////////////////////////////////////////////////////////////
-
-function Ref(index) {
-	this.index = index - 1;
-}
-
-
-// ObjectStream //////////////////////////////////////////////////////////////
-
-function ObjectStream(stream) {
-	this.stream = stream;
-
-	var version = this.readFileHeader();
-	if (version === -1) {
-		throw 'Not a Scratch project';
-	} else if (version !== 2) {
-		throw 'Project is too old: ' + version;
-	}
-
-	this.endOfInfo = stream.nextUnsignedInt(4);
-}
-
-// read the file header (the version of the file)
-ObjectStream.prototype.readFileHeader = function () {
-	return this.stream.nextString(8) === 'ScratchV' ? parseFloat(this.stream.nextString(2)) : -1;
-};
-
-// read the next object's header
-ObjectStream.prototype.readObjectHeader = function () {
-	this.temp = this.stream.index;
-	return this.stream.nextString(4) === 'ObjS' && this.stream.next() === 1 && this.stream.nextString(4) === 'Stch' && this.stream.next() === 1;
-};
-
-// get the next object in the stream
-ObjectStream.prototype.nextObject = function () {
-	if (!this.readObjectHeader()) {
-		throw ('Corrupt File');
-	}
-
-	var objectSize = this.stream.nextUnsignedInt(4),
-		fields = [],
-		i;
-
-	for (i = 0; i < objectSize; i += 1) {
-		fields[i] = this.readField();
-	}
-	return this.fixRefs(fields);
-};
-
-ObjectStream.prototype.readField = function () {
-	var id = this.stream.next();
-
-	if (id === 99) {
-		return new Ref(this.stream.nextUnsignedInt(3));
-	}
-	if (id <= 8) {
-		return this.readFixedFormat(id);
-	}
-	if (id < 99) {
-		return [id, this.readFixedFormat(id)];
-	}
-
-	var version = this.stream.next(),
-		size = this.stream.next(),
-		arr = [];
-
-	for (var i = 0; i < size; i++) arr[i] = this.readField();
-
-	return [id, arr, version, size];
-};
-
-ObjectStream.prototype.readFixedFormat = function (id) {
-	switch (id) {
-	case 1:
-		//nil
-		return null;
-	case 2:
-		//True
-		return true;
-	case 3:
-		//False
-		return false;
-	case 4:
-		//SmallInteger
-		return this.stream.nextSignedInt(4);
-	case 5:
-		//SmallInteger16
-		return this.stream.nextSignedInt(2);
-	case 6:
-		//LargePositiveInteger
-	case 7:
-		//LargeNegativeInteger
-		var d1 = 0;
-		var d2 = 1;
-		var i = this.stream.nextUnsignedInt(2);
-		for (var j = 0; j < i; j++)
-		{
-			var k = this.stream.next();
-			d1 += d2 * k;
-			d2 *= 256;
-		}
-		return id == 7 ? -d1 : d1;
-	case 8:
-		//Float
-		var bv = new Uint8Array(8);
-		for (var i = 7; i >= 0; i--)
-			bv[i] = this.stream.next();
-		return new Float64Array(bv.buffer)[0];
-	case 9:
-		//String
-		return this.stream.nextString(this.stream.nextUnsignedInt(4));
-	case 10:
-		//Symbol
-		return this.stream.nextString(this.stream.nextUnsignedInt(4));
-	case 11:
-		//ByteArray
-		return this.stream.nextArray(this.stream.nextUnsignedInt(4));
-	case 12:
-		//SoundBuffer
-		return this.stream.nextArray(this.stream.nextUnsignedInt(4) * 2);
-	case 13:
-		//Bitmap
-		var size = this.stream.nextUnsignedInt(4);
-		var arr = new Uint32Array(size);
-		for (var i = 0; i < size; i += 1)
-			arr[i] = this.stream.nextUnsignedInt(4);
-		arr.isBitmap = true;
-		return arr;
-	case 14:
-		//UTF8
-		return this.stream.nextString(this.stream.nextUnsignedInt(4));
-	case 20:
-		//Array
-	case 21:
-		//OrderedCollection
-	case 24:
-		//Dictionary
-	case 25:
-		//IdentityDictionary
-		var arr = [],
-			size = (id == 24 || id == 25) ? this.stream.nextUnsignedInt(4) * 2 : this.stream.nextUnsignedInt(4),
-			i;
-		for (i = 0; i < size; i++) {
-			arr[i] = this.readField();
-		}
-		return arr;
-	case 30:
-		//Color
-		var color = this.stream.nextUnsignedInt(4);
-		return new Color(color >> 22 & 0xFF, color >> 12 & 0xFF, color >> 2 & 0xFF);
-	case 31:
-		//TranslucentColor
-		var color = this.stream.nextUnsignedInt(4);
-		return new Color(color >> 22 & 0xFF, color >> 12 & 0xFF, color >> 2 & 0xFF, this.stream.next());
-	case 32:
-		//Point
-		return [this.readField(), this.readField()];
-	case 33:
-		//Rectangle
-		return [this.readField(), this.readField(), this.readField(), this.readField()];
-	case 34:
-		//Form
-		return [this.readField(), this.readField(), this.readField(), this.readField(), this.readField()];
-	case 35:
-		//ColorForm
-		return [this.readField(), this.readField(), this.readField(), this.readField(), this.readField(), this.readField()];
-	}
-	throw 'Unknown object: ' + id;
-};
-
-ObjectStream.prototype.fixRefs = function (objTable) {
-	var newObj = [];
-	for (var i = 0; i < objTable.length; i++)
-		newObj[i] = this.classForObject(objTable[i]);
-
-	for (var i = 0; i < newObj.length; i++) {
-		var obj = objTable[i];
-		switch (obj[0]) {
-		case 20:
-		case 21:
-			for (var j = 0; j < obj[1].length; j++)
-			newObj[i].push(obj[1][j] instanceof Ref ? newObj[obj[1][j].index] : obj[1][j]);
-			break;
-		case 24:
-		case 25:
-			for (var j = 0; j < obj[1].length; j += 2)
-			newObj[i].put(obj[1][j] instanceof Ref ? newObj[obj[1][j].index] : obj[1][j], obj[1][j + 1] instanceof Ref ? newObj[obj[1][j + 1].index] : obj[1][j + 1]);
-			break;
-		case 32:
-			newObj[i].x = obj[1][0] instanceof Ref ? newObj[obj[1][0].index] : obj[1][0];
-			newObj[i].y = obj[1][1] instanceof Ref ? newObj[obj[1][1].index] : obj[1][1];
-			break;
-		case 33:
-			newObj[i].origin = new Point(obj[1][0] instanceof Ref ? newObj[obj[1][0].index] : obj[1][0], obj[1][1] instanceof Ref ? newObj[obj[1][1].index] : obj[1][1]);
-			newObj[i].corner = new Point(obj[1][2] instanceof Ref ? newObj[obj[1][2].index] : obj[1][2], obj[1][3] instanceof Ref ? newObj[obj[1][3].index] : obj[1][3]);
-			break;
-		case 34:
-		case 35:
-			newObj[i].width = obj[1][0] instanceof Ref ? newObj[obj[1][0].index] : obj[1][0];
-			newObj[i].height = obj[1][1] instanceof Ref ? newObj[obj[1][1].index] : obj[1][1];
-			newObj[i].depth = obj[1][2] instanceof Ref ? newObj[obj[1][2].index] : obj[1][2];
-			newObj[i].offset = obj[1][3] instanceof Ref ? newObj[obj[1][3].index] : obj[1][3];
-			newObj[i].bits = obj[1][4] instanceof Ref ? newObj[obj[1][4].index] : obj[1][4];
-			if (obj[0] == 35) newObj[i].colors = obj[1][5] instanceof Ref ? newObj[obj[1][5].index] : obj[1][5];
-
-		default:
-			if (obj[0] > 99) {
-				newObj[i].VARS = [];
-				for (var j = 0; j < obj[1].length; j++)
-				newObj[i].VARS.push((obj[1][j] instanceof Ref) ? newObj[obj[1][j].index] : obj[1][j]);
-				if (newObj[i].initFields) newObj[i].initFields(new FieldStream(newObj[i].VARS), obj[2]);
-			}
-		}
-	}
-	for (var i = newObj.length - 1; i >= 0; i--)
-		if (newObj[i].initBeforeLoad)
-			newObj[i].initBeforeLoad();
-	return newObj[0];
-};
-
-ObjectStream.prototype.classForObject = function (obj) {
-	switch (obj[0]) {
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-	case 9:
-	case 10:
-	case 11:
-	case 12:
-	case 13:
-	case 14:
-	case 30:
-	case 31:
-		return obj[1];
-	case 20:
-	case 21:
-		return [];
-	case 23:
-	case 24:
-		return new Dictionary();
-	case 32:
-		return new Point();
-	case 33:
-		return new Rectangle();
-	case 34:
-	case 35:
-		return new Form();
-	case 105:
-		return new TextMorph();
-	case 106:
-		return new TextMorph();
-	case 109:
-		return new SampledSound();
-	case 124:
-		return new SpriteMorph();
-	case 125:
-		return new StageMorph();
-	case 155:
-		return new WatcherMorph();
-	case 162:
-		return new ImageMedia();
-	case 164:
-		return new SoundMedia();
-	case 173:
-		return new WatcherReadoutFrameMorph();
-	case 174:
-		return new SliderMorph();
-	default:
-		return new Morph();
-	}
-};
-
-
-// BinaryStream //////////////////////////////////////////////////////////////
-
-function BinaryStream(object) {
-	this.object = object;
-	this.index = 0;
-}
-
-BinaryStream.prototype.available = function () {
-	return this.object.length - this.index - 1;
-};
-
-BinaryStream.prototype.next = function () {
-	if (this.index >= this.object.length) throw 'End of stream'
-	return this.object[this.index++];
-};
-
-BinaryStream.prototype.nextArray = function (length) {
-	var bytes = new Uint8Array(length);
-	for (var i = 0; i < length; i++) {
-		bytes[i] = this.next();
-	}
-	return bytes;
-};
-
-BinaryStream.prototype.nextString = function (length) {
-	var string = '';
-	for (var i = 0; i < length; i++) {
-		string += String.fromCharCode(this.next());
-	}
-	return string;
-};
-
-BinaryStream.prototype.nextSignedInt = function (length) {
-	var num = 0;
-	var j = 1;
-	var bytes = this.nextArray(length).reverse();
-	for (var i = 0; i < length; i++) {
-		var b = bytes[i];
-		num += (b * j);
-		j *= 256;
-	}
-	return bytes[length - 1] > 128 ? num - j : num;
-};
-
-BinaryStream.prototype.nextUnsignedInt = function (length) {
-	var num = 0;
-	var j = 1;
-	var bytes = this.nextArray(length).reverse();
-	for (var i = 0; i < length; i++) {
-		var b = bytes[i];
-		num += (b * j);
-		j *= 256;
-	}
-	return num;
-};
-
-
-// PlayerFrameMorph ////////////////////////////////////////////////////////
+// PlayerFrameMorph ///////////////////////////////////////
 var PlayerFrameMorph;
 
 PlayerFrameMorph.prototype = new Morph();
@@ -719,7 +371,7 @@ PlayerFrameMorph.prototype.read = function (file) {
 	}
 	var objectStream = new ObjectStream(new BinaryStream(file));
 	this.info = objectStream.nextObject();
-	var stage = objectStream.nextObject()
+	var stage = objectStream.nextObject();
 	this.setStage(stage);
 	if (this.loader.xhr.getResponseHeader('Content-Disposition')) {
 		var vars = [], hash, hashes = this.loader.xhr.getResponseHeader('Content-Disposition').split(';'), i;
@@ -756,7 +408,7 @@ PlayerFrameMorph.prototype.read = function (file) {
 };
 
 
-// ButtonMorph ////////////////////////////////////////////////////////
+// ButtonMorph ////////////////////////////////////////////
 var ButtonMorph;
 
 ButtonMorph.prototype = new Morph();
@@ -817,7 +469,7 @@ TextMorph.prototype.initBeforeLoad = function () {
 	}
 };
 
-// ScriptableMorph ////////////////////////////////////////////////////////
+// ScriptableMorph ////////////////////////////////////////
 var ScriptableMorph;
 
 ScriptableMorph.prototype = new Morph();
@@ -1045,7 +697,7 @@ ScriptableMorph.prototype.getList = function (name) {
 };
 
 
-// StageMorph ////////////////////////////////////////////////////////
+// StageMorph /////////////////////////////////////////////
 var StageMorph;
 
 StageMorph.prototype = new ScriptableMorph();
@@ -1188,7 +840,7 @@ StageMorph.prototype.setTurbo = function (flag) {
 };
 
 
-// SpriteMorph ////////////////////////////////////////////////////////
+// SpriteMorph ////////////////////////////////////////////
 var SpriteMorph;
 
 SpriteMorph.prototype = new ScriptableMorph();
@@ -1311,7 +963,7 @@ SpriteMorph.prototype.fixLayout = function () {
 	this.setRelativePosition(this.relativePosition());
 };
 
-// Thread /////////////////////////////////////////////////////////////
+// Thread /////////////////////////////////////////////////
 
 function Thread(object, script) {
 	this.init(object, script);
@@ -1472,7 +1124,7 @@ Thread.prototype.popState = function () {
 };
 
 
-// Stopwatch ///////////////////////////////////////////////////////////
+// Stopwatch //////////////////////////////////////////////
 
 function Stopwatch() {
 	this.init();
@@ -1491,7 +1143,7 @@ Stopwatch.prototype.getElapsed = function () {
 };
 
 
-// ScratchMedia ////////////////////////////////////////////////////////
+// ScratchMedia ///////////////////////////////////////////
 
 function ScratchMedia() {
 	this.mediaName = null;
@@ -1502,7 +1154,7 @@ ScratchMedia.prototype.initFields = function (fields, version) {
 };
 
 
-// ImageMedia ////////////////////////////////////////////////////////
+// ImageMedia /////////////////////////////////////////////
 var ImageMedia;
 
 ImageMedia.prototype = new ScratchMedia();
@@ -1548,7 +1200,7 @@ ImageMedia.prototype.extent = function () {
 };
 
 
-// SoundMedia ////////////////////////////////////////////////////////
+// SoundMedia /////////////////////////////////////////////
 var SoundMedia;
 
 SoundMedia.prototype = new ScratchMedia();
@@ -1567,7 +1219,7 @@ SoundMedia.prototype.initFields = function (fields, version) {
 };
 
 
-// SampledSound ////////////////////////////////////////////////////////
+// SampledSound ///////////////////////////////////////////
 var SampledSound;
 
 SampledSound.prototype = new ScratchMedia();
@@ -1590,7 +1242,7 @@ BoxMorph.prototype.initFields = function (fields, version) {
 };
 
 
-// WatcherMorph ////////////////////////////////////////////////////////
+// WatcherMorph ///////////////////////////////////////////
 var WatcherMorph;
 
 WatcherMorph.prototype = new BoxMorph();
@@ -1652,7 +1304,7 @@ WatcherMorph.prototype.update = function () {
 };
 
 
-// WatcherReadoutFrameMorph ////////////////////////////////////////////////////////
+// WatcherReadoutFrameMorph ///////////////////////////////
 var WatcherReadoutFrameMorph;
 
 WatcherReadoutFrameMorph.prototype = new BoxMorph();
@@ -1688,7 +1340,7 @@ WatcherReadoutFrameMorph.prototype.fixLayout = function () {
 };
 
 
-// WatcherSliderMorph ////////////////////////////////////////////////////////
+// WatcherSliderMorph /////////////////////////////////////
 var WatcherSliderMorph;
 
 WatcherSliderMorph.prototype = new SliderMorph();
