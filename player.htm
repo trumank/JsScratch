@@ -7,22 +7,40 @@
 		<script type="text/javascript" src="./js/morphicchanges.js"></script>
 		<script type="text/javascript" src="./js/jsscratch.js"></script>
 		<script type="text/javascript">
-			var worldMorph, player, version = "JsScratch May 16, 2012", urlVars = getUrlVariables();
-			var projectUrl = urlVars['project'] ? 'getfile.php?f=' + urlVars['project'] : null;
-			window.onload = function()
-			{
-				worldMorph = new WorldMorph(document.getElementById('javascriptplayer'), false);
-				onbeforeunload = null;
-				worldMorph.isDevMode = true;
-				player = new PlayerFrameMorph();
-				worldMorph.add(player);
-				player.setup();
-				setInterval(function () {
-					worldMorph.doOneCycle();
-				}, 0);
-				document.onselectstart = function (e) {
-					e.preventDefault();
-				};
+			var worldMorph, player, version = "JsScratch Nov 30, 2011", urlVars = getUrlVariables();
+			var projectUrl = urlVars['project'] ? urlVars['project'] : null;
+			
+			function log (str) {
+				var log = document.getElementById('log');
+				if (log) {
+					log.textContent += str + '\n';
+				}
+				if (console.log) {
+					console.log(str);
+				}
+			}
+			
+			window.onerror = function (e) {
+				log(e);
+			}
+			
+			window.onload = function() {
+				try {
+					worldMorph = new WorldMorph(document.getElementById('javascriptplayer'), false);
+					onbeforeunload = null;
+					worldMorph.isDevMode = true;
+					player = new PlayerFrameMorph();
+					worldMorph.add(player);
+					player.setup();
+					setInterval(function () {
+						worldMorph.doOneCycle();
+					}, 0);
+					document.onselectstart = function (e) {
+						e.preventDefault();
+					};
+				} catch (e) {
+					log(e)
+				}
 			}
 			function getUrlVariables() {
 				var vars = [], hash;
@@ -40,6 +58,6 @@
 			Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>
 		</canvas>
 		<br/>
-		<textarea id="log" rows="10" style="width: 482px;"></textarea>
+		<textarea id="log" rows="10" readonly="readonly" style="width: 482px;"></textarea>
 	</body>
 </html>
