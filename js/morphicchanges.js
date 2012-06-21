@@ -48,17 +48,6 @@ function newImage(src, onload) {
 	return img;
 }
 
-Uint8Array.prototype.reverse = function () {
-	var newArray = this.subarray(0, this.length);
-	var swap;
-	for (var i = 0; i < newArray.length / 2; i++) {
-		swap = newArray[i];
-		newArray[i] = newArray[newArray.length - i - 1];
-		newArray[newArray.length - i - 1] = swap;
-	}
-	return newArray;
-};
-
 Number.prototype.mod = function (n) {
 	return ((this % n) + n) % n;
 }

@@ -28,7 +28,9 @@ LoaderMorph.prototype.init = function (url) {
 		myself.onabort(e);
 	}, false);
 	this.xhr.open('GET', url, true);
-	this.xhr.responseType = 'arraybuffer';
+	if (this.xhr.overrideMimeType) {
+		this.xhr.overrideMimeType("text/plain; charset=x-user-defined");
+	}
 };
 
 LoaderMorph.prototype.startLoad = function (e) {
@@ -170,11 +172,11 @@ Form.prototype.extent = function () {
 };
 
 Form.prototype.decodePixels = function () {
-	var stream = new BinaryStream(this.bits);
+	var stream = new jDataView(jDataView.createBuffer.apply(null, this.bits), undefined, undefined, false);
 	var i = this.decodeInt(stream);
-	var bitmap = new Uint32Array(i);
+	var bitmap = [];
 	var j = 0;
-	while ((stream.available() > 0) && (j < i))
+	while ((stream.tell() <= stream.byteLength - 1) && (j < i))
 	{
 		var k = this.decodeInt(stream);
 		var l = k >> 2;
@@ -185,19 +187,19 @@ Form.prototype.decodePixels = function () {
 			j++;
 			break;
 		case 1:
-			var j1 = stream.next();
+			var j1 = stream.getUint8();
 			var k1 = j1 << 24 | j1 << 16 | j1 << 8 | j1;
 			for (var j2 = 0; j2 < l; j2++)
 				bitmap[j++] = k1;
 			break;
 		case 2:
-			var l1 = stream.nextUnsignedInt(4);
+			var l1 = stream.getUint32();
 			for (var k2 = 0; k2 < l; k2++)
 				bitmap[j++] = l1;
 			break;
 		case 3:
 			for (var l2 = 0; l2 < l; l2++)
-				bitmap[j++] = stream.nextUnsignedInt(4);
+				bitmap[j++] = stream.getUint32();
 			break;
 		}
 	}
@@ -205,12 +207,12 @@ Form.prototype.decodePixels = function () {
 }
 
 Form.prototype.decodeInt = function (stream) {
-	var i = stream.next();
+	var i = stream.getUint8();
 	if (i <= 223)
 		return i;
 	if (i <= 254)
-		return (i - 224) * 256 + stream.next();
-	return stream.nextUnsignedInt(4);
+		return (i - 224) * 256 + stream.getUint8();
+	return stream.getUint32();
 };
 
 Form.prototype.setImageData = function (data) {
@@ -352,7 +354,13 @@ PlayerFrameMorph.prototype.setup = function () {
 		hw = this.width() / 2,
 		hh = this.height() / 2;
 	loader.onload = function (e) {
-		myself.read(window.VBArray ? new VBArray(player.loader.xhr.responseBody).toArray() : window.Uint8Array ? new Uint8Array(player.loader.xhr.response) : alert('Browser unsupported. :('));
+		var data;
+		if (window.VBArray) {
+			data = String.fromCharCode.apply(null, new VBArray(player.loader.xhr.responseBody).toArray()); // stupid IE
+		} else {
+			data = player.loader.xhr.responseText;
+		}
+		myself.read(data);
 		this.destroy();
 	};
 	loader.setPosition(new Point(hw - 100, hh - 50));
@@ -369,7 +377,7 @@ PlayerFrameMorph.prototype.read = function (file) {
 	if (this.stage) {
 		this.stage.destroy();
 	}
-	var objectStream = new ObjectStream(new BinaryStream(file));
+	var objectStream = new ObjectStream(new jDataView(file, undefined, undefined, false));
 	this.info = objectStream.nextObject();
 	var stage = objectStream.nextObject();
 	this.setStage(stage);
