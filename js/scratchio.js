@@ -21,6 +21,10 @@ function Ref(index) {
 // ObjectStream ///////////////////////////////////////////
 
 function ObjectStream(stream) {
+	this.init(stream);
+}
+
+ObjectStream.prototype.init = function (stream) {
 	this.stream = stream;
 
 	var version = this.readFileHeader();
@@ -31,7 +35,7 @@ function ObjectStream(stream) {
 	}
 
 	this.endOfInfo = stream.getUint32();
-}
+};
 
 // read the file header (the version of the file)
 ObjectStream.prototype.readFileHeader = function () {
@@ -210,8 +214,8 @@ ObjectStream.prototype.fixReferences = function (objTable) {
 				newObj[i].put(os[j], os[j + 1]);
 			break;
 		case 32:
-			newObj[i].x = os[j];
-			newObj[i].y = os[j + 1];
+			newObj[i].x = os[0];
+			newObj[i].y = os[1];
 			break;
 		case 33:
 			newObj[i].origin = new Point(os[0], os[1]);
@@ -229,9 +233,13 @@ ObjectStream.prototype.fixReferences = function (objTable) {
 			}
 		default:
 			if (obj[0] > 99) {
-				newObj[i].VARS = os;
-				if (newObj[i].initFields) {
-					newObj[i].initFields(new FieldStream(newObj[i].VARS), obj[2]);
+				if (newObj[i] instanceof Array) {
+					[].push.apply(newObj[i], os);
+				} else {
+					newObj[i].VARS = os;
+					if (newObj[i].initFields) {
+						newObj[i].initFields(new FieldStream(newObj[i].VARS), obj[2]);
+					}
 				}
 			}
 		}
@@ -265,27 +273,19 @@ ObjectStream.prototype.classForObject = function (obj) {
 	case 34:
 	case 35:
 		return new Form();
-	case 105:
-		return new TextMorph();
-	case 106:
-		return new TextMorph();
 	case 109:
 		return new SampledSound();
 	case 124:
-		return new SpriteMorph();
+		return new Sprite();
 	case 125:
-		return new StageMorph();
-	case 155:
-		return new WatcherMorph();
+		return new Stage();
+	//case 155:
+	//	return new Watcher();
 	case 162:
 		return new ImageMedia();
 	case 164:
 		return new SoundMedia();
-	case 173:
-		return new WatcherReadoutFrameMorph();
-	case 174:
-		return new SliderMorph();
 	default:
-		return new Morph();
+		return [];
 	}
 };

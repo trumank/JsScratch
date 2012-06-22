@@ -80,24 +80,26 @@ var jDataView = function (buffer, byteOffset, byteLength, littleEndian) {
 	this._offset = 0;
 };
 
-jDataView.createBuffer = function () {
+jDataView.createBuffer = function (data) {
 	if (compatibility.NodeBuffer) {
-		var buffer = new Buffer(arguments.length);
-		for (var i = 0; i < arguments.length; ++i) {
-			buffer[i] = arguments[i];
+		var buffer = new Buffer(data.length);
+		for (var i = 0; i < data.length; ++i) {
+			buffer[i] = data[i];
 		}
 		return buffer;
 	}
 	if (compatibility.ArrayBuffer) {
-		var buffer = new ArrayBuffer(arguments.length);
+		var buffer = new ArrayBuffer(data.length);
 		var view = new Int8Array(buffer);
-		for (var i = 0; i < arguments.length; ++i) {
-			view[i] = arguments[i];
+		for (var i = 0; i < data.length; ++i) {
+			view[i] = data[i];
 		}
 		return buffer;
 	}
 
-	return String.fromCharCode.apply(null, arguments);
+	return data.reduce(function(str, charIndex) {
+		return str += String.fromCharCode(charIndex);
+	}, '');
 };
 
 jDataView.prototype = {

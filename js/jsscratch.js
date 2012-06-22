@@ -1,505 +1,95 @@
-// LoaderMorph ////////////////////////////////////////////
-var LoaderMorph;
-
-LoaderMorph.prototype = new Morph();
-LoaderMorph.prototype.constructor = LoaderMorph;
-LoaderMorph.uber = Morph.prototype;
-
-function LoaderMorph(url) {
-	this.init(url);
-}
-
-LoaderMorph.prototype.init = function (url) {
-	LoaderMorph.uber.init.call(this);
+// Player /////////////////////////////////////////////////
+function Player(url, canvas) {
+	this.canvas = canvas;
+	this.url = url;
+	
+	// download the project
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', url, true);
+	if (xhr.overrideMimeType) {
+		xhr.overrideMimeType("text/plain; charset=x-user-defined");
+	}
 	var myself = this;
-	this.progressMorph = new ProgressMorph();
-	this.add(this.progressMorph);
-	this.xhr = new XMLHttpRequest();
-	this.xhr.addEventListener('progress', function (e) {
-		myself.onprogress(e);
-	}, false);
-	this.xhr.addEventListener('load', function (e) {
-		myself.onload(e);
-	}, false);
-	this.xhr.addEventListener('error', function (e) {
-		myself.onerror(e);
-	}, false);
-	this.xhr.addEventListener('abort', function (e) {
-		myself.onabort(e);
-	}, false);
-	this.xhr.open('GET', url, true);
-	if (this.xhr.overrideMimeType) {
-		this.xhr.overrideMimeType("text/plain; charset=x-user-defined");
-	}
-};
-
-LoaderMorph.prototype.startLoad = function (e) {
-	this.xhr.send(null);
-};
-
-LoaderMorph.prototype.onprogress = function (e) {
-	if (e.lengthComputable) {
-		this.progressMorph.setProgress(this.percentComplete = e.loaded / e.total * 100);
-	}
-};
-
-LoaderMorph.prototype.onload = function (e) {
-
-};
-
-LoaderMorph.prototype.onerror = function (e) {
-
-};
-
-LoaderMorph.prototype.onabort = function (e) {
-
-};
-
-LoaderMorph.prototype.drawNew = function () {
-	if (this.progressMorph) {
-		this.progressMorph.setBounds(this.bounds.insetBy(10));
-	}
-	LoaderMorph.uber.drawNew.call(this);
-};
-
-
-// ProgressMorph //////////////////////////////////////////
-var ProgressMorph;
-
-ProgressMorph.prototype = new BoxMorph();
-ProgressMorph.prototype.constructor = ProgressMorph;
-ProgressMorph.uber = BoxMorph.prototype;
-
-function ProgressMorph() {
-	this.init();
-}
-
-ProgressMorph.prototype.init = function () {
-	this.barColor = new Color(0, 120, 200);
-	this.percent = 0;
-	ProgressMorph.uber.init.call(this);
-};
-
-ProgressMorph.prototype.drawNew = function () {
-	ProgressMorph.uber.drawNew.call(this);
-	var ctx = this.image.getContext('2d'),
-		w = this.width(),
-		h = this.height(),
-		barLoc = w * (this.percent / 100) - this.border * (w / (w - this.border)),
-		grad = ctx.createLinearGradient(0, this.border, 0, h - this.border);
-	grad.addColorStop(0, this.barColor.lighter(25).toString());
-	grad.addColorStop(1, this.barColor.darker(25).toString());
-
-	ctx.beginPath();
-	ctx.rect(0, 0, barLoc, h);
-	ctx.clip();
-
-	ctx.fillStyle = grad;
-	ctx.beginPath();
-	this.outlinePath(ctx, Math.max(this.edge - this.border, 0), this.border);
-	ctx.closePath();
-	ctx.fill();
-};
-
-ProgressMorph.prototype.developersMenu = function () {
-	var menu = ProgressMorph.uber.developersMenu.call(this);
-	menu.addLine();
-	menu.addItem('percent...', function () {
-		this.prompt(
-		menu.title + '\npercent:', this.setProgress, this, this.percent.toString(), null, 0, 100, true);
-	}, 'set the percent');
-	return menu;
-};
-
-ProgressMorph.prototype.setProgress = function (num) {
-	this.percent = num.toString();
-	this.changed();
-	this.drawNew();
-	this.changed();
-};
-
-
-// Dictionary /////////////////////////////////////////////
-
-function Dictionary(keys, values) {
-	this.obj = {};
-	if (!keys || !values) {
-		return;
-	}
-	for (var i = 0; i < keys.length; i++) {
-		obj[keys[i]] = values[i];
-	}
-}
-
-Dictionary.prototype.at = function (key) {
-	return this.obj[key];
-};
-
-Dictionary.prototype.put = function (key, value) {
-	this.obj[key] = value;
-};
-
-
-// Form ///////////////////////////////////////////////////
-
-function Form(width, height, depth, offset, bits, colors) {
-	this.width = width;
-	this.height = height;
-	this.depth = depth;
-	this.offset = offset;
-	this.bits = bits;
-	if (colors) {
-		this.colors = colors;
-	}
-}
-
-Form.prototype.initBeforeLoad = function () {
-	var canvas = newCanvas(new Point(this.width, this.height));
-	var ctx = canvas.getContext('2d');
-
-	if (!this.bits.isBitmap)
-		this.bits = this.decodePixels();
-
-	var data = ctx.createImageData(this.width, this.height);
-	this.setImageData(data);
-	ctx.putImageData(data, 0, 0);
-	this.base64 = canvas.toDataURL();
-	this.image = newImage(this.base64);
-};
-
-Form.prototype.extent = function () {
-	return new Point(this.width, this.height);
-};
-
-Form.prototype.decodePixels = function () {
-	var stream = new jDataView(jDataView.createBuffer.apply(null, this.bits), undefined, undefined, false);
-	var i = this.decodeInt(stream);
-	var bitmap = [];
-	var j = 0;
-	while ((stream.tell() <= stream.byteLength - 1) && (j < i))
-	{
-		var k = this.decodeInt(stream);
-		var l = k >> 2;
-		var i1 = k & 3;
-		switch(i1)
-		{
-		case 0:
-			j++;
-			break;
-		case 1:
-			var j1 = stream.getUint8();
-			var k1 = j1 << 24 | j1 << 16 | j1 << 8 | j1;
-			for (var j2 = 0; j2 < l; j2++)
-				bitmap[j++] = k1;
-			break;
-		case 2:
-			var l1 = stream.getUint32();
-			for (var k2 = 0; k2 < l; k2++)
-				bitmap[j++] = l1;
-			break;
-		case 3:
-			for (var l2 = 0; l2 < l; l2++)
-				bitmap[j++] = stream.getUint32();
-			break;
-		}
-	}
-	return bitmap;
-}
-
-Form.prototype.decodeInt = function (stream) {
-	var i = stream.getUint8();
-	if (i <= 223)
-		return i;
-	if (i <= 254)
-		return (i - 224) * 256 + stream.getUint8();
-	return stream.getUint32();
-};
-
-Form.prototype.setImageData = function (data) {
-	var array = data.data;
-	if (this.depth <= 8)
-	{
-		var colors = this.colors || squeakColors;
-		var l = this.bits.length / this.height;
-		var i1 = (1 << this.depth) - 1;
-		var j1 = 32 / this.depth;
-		for(var y = 0; y < this.height; y++)
-		{
-			for(var x = 0; x < this.width; x++)
-			{
-				var i2 = this.bits[y * l + (x - (x % j1)) / j1];
-				var j2 = this.depth * (j1 - x % j1 - 1);
-				var pi = (y * this.width + x) * 4;
-				var ci = i2 >> j2 & i1;
-				var c = colors[ci];
-				if (c)
-				{
-					array[pi] = c.r;
-					array[pi + 1] = c.g;
-					array[pi + 2] = c.b;
-					array[pi + 3] = c.a == 0 ? 0 : 255;
-				}
-			}
-		}
-	}
-	if (this.depth == 16)
-	{
-		var bits = [];
-		var hw = Math.round((this.width) / 2);
-		var index, i, j;
-		for (var y = 0; y < this.height; y++)
-		{
-			i = 0;
-			for (var x = 0; x < this.width; x++)
-			{
-				j = this.bits[y * hw + Math.round(x / 2)] >> i & 0xFFFF;
-				index = (x + y * this.width) * 4;
-				array[index] = (j >> 10 & 0x1F) << 3;
-				array[index + 1] = (j >> 5 & 0x1F) << 3;
-				array[index + 2] = (j & 0x1F) << 3;
-				array[index + 3] = 0xFF;
-				i = i == 16 ? 0 : 16;
-			}
-		}
-		this.bits = bits;
-	}
-	if (this.depth == 32)
-	{
-		for (var i = 0; i < array.length; i += 4)
-		{
-			var c = this.bits[i / 4];
-			array[i] = (c >> 16) & 0xFF;
-			array[i + 1] = (c >> 8) & 0xFF;
-			array[i + 2] = c & 0xFF;
-			array[i + 3] = this.depth == 16 ? (c >> 24) | 0xFF : 0xFF - ((c >> 24) | 0xFF);
-		}
-	}
-}
-
-
-// PlayerFrameMorph ///////////////////////////////////////
-var PlayerFrameMorph;
-
-PlayerFrameMorph.prototype = new Morph();
-PlayerFrameMorph.prototype.constructor = PlayerFrameMorph;
-PlayerFrameMorph.uber = Morph.prototype;
-
-function PlayerFrameMorph() {
-	this.init();
-}
-
-PlayerFrameMorph.prototype.init = function () {
-	this.toolbarColor = new Color(128, 128, 128);
-	this.borderColor = new Color(0, 0, 0);
-	var myself = this;
-	this.goButton = new ButtonMorph(function () {
-		if (this.world().currentKey == 16) {
-			myself.stage.setTurbo(!myself.stage.turbo);
-		} else {
-			myself.stage.start();
-		}
-	}, 'data:image/gif;base64,R0lGODlhFAARAKIAAAAAAP///wK7AkZGRv///wAAAAAAAAAAACH5BAEAAAQALAAAAAAUABEAAAM7SKrT6yu+IUSjFkrSqv/WxmHgpzFlGjKk6g2TC8KsbD72G+freGGX2UOi6WRYImLvlBxNmk0adMOcKhIAOw==', 'data:image/gif;base64,R0lGODlhFAARAKIAAAAAAP///wD/AEZGRv///wAAAAAAAAAAACH5BAEAAAQALAAAAAAUABEAAAM7SKrT6yu+IUSjFkrSqv/WxmHgpzFlGjKk6g2TC8KsbD72G+freGGX2UOi6WRYImLvlBxNmk0adMOcKhIAOw==');
-	this.goButton.bounds = new Rectangle(0, 0, 20, 17);
-	this.stopButton = new ButtonMorph(function () {
-		myself.stage.stopAll();
-	}, 'data:image/gif;base64,R0lGODlhEQARAKIAAAAAAP///0ZFQ8cAAP///wAAAAAAAAAAACH5BAEAAAQALAAAAAARABEAAAMvSKrSLiuyQeuAkgjL8dpc94UkBJJhg5bnWqmuBcfUTNuxSV+j602oX0+UYTwakgQAOw==', 'data:image/gif;base64,R0lGODlhEQARAKIAAAAAAP///0ZFQ+8AAP///wAAAAAAAAAAACH5BAEAAAQALAAAAAARABEAAAMvSKrSLiuyQeuAkgjL8dpc94UkBJJhg5bnWqmuBcfUTNuxSV+j602oX0+UYTwakgQAOw==');
-	this.stopButton.bounds = new Rectangle(0, 0, 20, 17);
-	this.messageMorph = new StringMorph(version);
-	this.messageMorph.changed();
-	this.messageMorph.drawNew();
-	PlayerFrameMorph.uber.init.call(this);
-	this.add(this.goButton);
-	this.add(this.stopButton);
-	this.add(this.messageMorph);
-};
-
-PlayerFrameMorph.prototype.drawNew = function () {
-	this.goButton.bounds = new Rectangle(this.width() - 64, 4, this.width() - 44, 21);
-	this.stopButton.bounds = new Rectangle(this.width() - 31, 4, this.width() - 14, 21);
-	this.messageMorph.bounds = new Rectangle(5, 4, this.width() - 80, 17);
-
-	if (this.stage) {
-		this.stage.bounds = new Rectangle(1, 26, this.width() - 1, this.height() - 1);
-	}
-
-	var ctx;
-	this.image = newCanvas(this.extent());
-	ctx = this.image.getContext('2d');
-	ctx.fillStyle = this.toolbarColor.toString();
-	ctx.fillRect(1, 1, this.width() - 2, 24);
-	ctx.strokeStyle = this.borderColor.toString();
-	ctx.lineWidth = 2;
-	ctx.strokeRect(0, 0, this.width(), this.height());
-	ctx.lineWidth = 1;
-	ctx.beginPath();
-	ctx.moveTo(0.5, 25.5);
-	ctx.lineTo(this.width() - 0.5, 25.5);
-	ctx.stroke();
-};
-
-PlayerFrameMorph.prototype.setStage = function (stage) {
-	this.stage = stage;
-	this.stage.setPosition(new Point(1, 26));
-	this.stage.drawNew();
-	this.addBack(stage);
-	this.stage.setup();
-	this.drawNew();
-}
-
-PlayerFrameMorph.prototype.setup = function () {
-	this.bounds = worldMorph.bounds;
-	if (!projectUrl) return;
-	var myself = this,
-		loader = new LoaderMorph(projectUrl),
-		hw = this.width() / 2,
-		hh = this.height() / 2;
-	loader.onload = function (e) {
-		var data;
-		if (window.VBArray) {
-			data = String.fromCharCode.apply(null, new VBArray(player.loader.xhr.responseBody).toArray()); // stupid IE
-		} else {
-			data = player.loader.xhr.responseText;
-		}
-		myself.read(data);
-		this.destroy();
+	xhr.onload = function (e) {
+		myself.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
+			return str += String.fromCharCode(charIndex);
+		}, '') : xhr.responseText);
 	};
-	loader.setPosition(new Point(hw - 100, hh - 50));
-	loader.setExtent(new Point(200, 100));
-	this.add(loader);
-	loader.startLoad();
-	this.loader = loader;
-	this.changed();
-	this.drawNew();
-	this.changed();
-};
+	xhr.send();
+}
 
-PlayerFrameMorph.prototype.read = function (file) {
-	if (this.stage) {
-		this.stage.destroy();
-	}
-	var objectStream = new ObjectStream(new jDataView(file, undefined, undefined, false));
+Player.prototype.read = function (data) {
+	var objectStream = new ObjectStream(new jDataView(data, undefined, undefined, false));
 	this.info = objectStream.nextObject();
-	var stage = objectStream.nextObject();
-	this.setStage(stage);
-	if (this.loader.xhr.getResponseHeader('Content-Disposition')) {
-		var vars = [], hash, hashes = this.loader.xhr.getResponseHeader('Content-Disposition').split(';'), i;
-		for(i = 0; i < hashes.length; i++) {
-			hash = hashes[i].split('=');
-			if (hash[1])
-				vars[hash[0]] = hash[1].substr(1, hash[1].length - 2);
-		}
-		setName(vars['filename']);
-	}
-	worldMorph.fullChanged();
-	worldMorph.drawNew();
-	worldMorph.fullChanged();
-	var redrawChildren = function (morph) {
-		morph.children.forEach(function (child) {
-			child.changed();
-			child.drawNew();
-			child.changed();
-			redrawChildren(child);
-		});
-	};
-	setTimeout(function () {
-		stage.changed();
-		stage.drawNew();
-		stage.changed();
-		redrawChildren(stage);
-	}, 0);
-	setTimeout(function () { //give all images time to load
-		stage.changed();
-		stage.drawNew();
-		stage.changed();
-		redrawChildren(stage);
-	}, 1000);
+	this.stage = objectStream.nextObject();
+	this.stage.ctx = this.canvas.getContext('2d');
+	this.stage.setup();
+};
+
+Player.prototype.start = function () {
+
+};
+
+Player.prototype.stop = function () {
+
+};
+
+Player.prototype.setTurbo = function (turbo) {
+
 };
 
 
-// ButtonMorph ////////////////////////////////////////////
-var ButtonMorph;
-
-ButtonMorph.prototype = new Morph();
-ButtonMorph.prototype.constructor = ButtonMorph;
-ButtonMorph.uber = Morph.prototype;
-
-function ButtonMorph(onClick, normal, over) {
-	this.init(onClick, normal, over);
+function newCanvas(width, height) {
+	var canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+	return canvas;
 }
 
-ButtonMorph.prototype.init = function (onClick, normal, over) {
-	ButtonMorph.uber.init.call(this);
-	this.color = new Color(0, 0, 0, 0);
-	this.onClickLeft = onClick;
-	var myself = this;
-	this.normalTexture = newImage(normal, function () {
-		myself.texture = myself.normalTexture.src;
-		myself.cachedTexture = myself.normalTexture;
-		myself.changed();
-		myself.drawNew();
-	});
-	this.overTexture = newImage(over);
-};
+function newImage(src, callback) {
+	var img = new Image();
+	img.loaded = false;
+	img.onload = function() {
+		img.loaded = true;
+		callback && callback();
+	};
+	img.src = src;
+	return img;
+}
 
-ButtonMorph.prototype.mouseLeave = function () {
-	if (!this.normalTexture.loaded) return;
-	this.texture = this.normalTexture.src;
-	this.cachedTexture = this.normalTexture;
-	this.changed();
-	this.drawNew();
-	this.changed();
-};
-
-ButtonMorph.prototype.mouseEnter = function () {
-	if (!this.overTexture.loaded) return;
-	this.texture = this.overTexture.src;
-	this.cachedTexture = this.overTexture;
-	this.changed();
-	this.drawNew();
-	this.changed();
-};
-
-ButtonMorph.prototype.mouseClickLeft = function () {
-	if (this.onClickLeft) this.onClickLeft();
-};
-
-TextMorph.prototype.initFields = function (fields, version) {
-	TextMorph.uber.initFields.call(this, fields, version);
-	initFieldsNamed.call(this, ['fontStyle', 'emphasis', 'text'], fields);
-};
-
-TextMorph.prototype.initBeforeLoad = function () {
-	this.fontSize = this.fontStyle[1];
-	var f = this.fontStyle[0];
-	if (f.indexOf('Bold', f.length - 4) !== -1) {
-		this.fontStyle = f.substr(0, f.length - 4);
-		this.isBold = true;
+function initFieldsNamed(fields, fieldStream) {
+	for (var i = 0; i < fields.length; i++) {
+		if (fields[i]) {
+			this[fields[i]] = fieldStream.nextField();
+		}
 	}
-};
+}
 
-// ScriptableMorph ////////////////////////////////////////
-var ScriptableMorph;
+Number.prototype.mod = function (n) {
+	return ((this % n) + n) % n;
+}
 
-ScriptableMorph.prototype = new Morph();
-ScriptableMorph.prototype.constructor = ScriptableMorph;
-ScriptableMorph.uber = Morph.prototype;
+//'data:image/gif;base64,R0lGODlhFAARAKIAAAAAAP///wK7AkZGRv///wAAAAAAAAAAACH5BAEAAAQALAAAAAAUABEAAAM7SKrT6yu+IUSjFkrSqv/WxmHgpzFlGjKk6g2TC8KsbD72G+freGGX2UOi6WRYImLvlBxNmk0adMOcKhIAOw==', 'data:image/gif;base64,R0lGODlhFAARAKIAAAAAAP///wD/AEZGRv///wAAAAAAAAAAACH5BAEAAAQALAAAAAAUABEAAAM7SKrT6yu+IUSjFkrSqv/WxmHgpzFlGjKk6g2TC8KsbD72G+freGGX2UOi6WRYImLvlBxNmk0adMOcKhIAOw==');
+//'data:image/gif;base64,R0lGODlhEQARAKIAAAAAAP///0ZFQ8cAAP///wAAAAAAAAAAACH5BAEAAAQALAAAAAARABEAAAMvSKrSLiuyQeuAkgjL8dpc94UkBJJhg5bnWqmuBcfUTNuxSV+j602oX0+UYTwakgQAOw==', 'data:image/gif;base64,R0lGODlhEQARAKIAAAAAAP///0ZFQ+8AAP///wAAAAAAAAAAACH5BAEAAAQALAAAAAARABEAAAMvSKrSLiuyQeuAkgjL8dpc94UkBJJhg5bnWqmuBcfUTNuxSV+j602oX0+UYTwakgQAOw==');
 
-function ScriptableMorph() {
+
+// Scriptable ////////////////////////////////////////
+function Scriptable() {
 	this.init();
 }
 
-ScriptableMorph.prototype.init = function () {
-	ScriptableMorph.uber.init.call(this);
+Scriptable.prototype.init = function () {
 	this.threads = [];
 	this.fps = 60;
 };
 
-ScriptableMorph.prototype.initFields = function (fields, version) {
-	ScriptableMorph.uber.initFields.call(this, fields, version);
+Scriptable.prototype.initFields = function (fields, version) {
+	initFieldsNamed.call(this, ['bounds', 'parent', 'children', 'color', 'flags'], fields);
+	fields.nextField();
 	initFieldsNamed.call(this, ['objName', 'variables', 'blocksBin', 'isClone', 'media', 'costume'], fields);
 };
 
-ScriptableMorph.prototype.initBeforeLoad = function () {
+Scriptable.prototype.initBeforeLoad = function () {
 	for (var i = 0; i < this.blocksBin.length; i++) {
 		if (['EventHatMorph', 'KeyEventHatMorph', 'MouseClickEventHatMorph'].indexOf(this.blocksBin[i][1][0][0]) != -1) {
 			this.threads.push(new Thread(this, this.blocksBin[i][1]));
@@ -517,35 +107,22 @@ ScriptableMorph.prototype.initBeforeLoad = function () {
 	}
 };
 
-ScriptableMorph.prototype.drawNew = function () {
-	this.needsRedraw = false
-	if (!this.costume)
-	{
-		ScriptableMorph.uber.drawNew.call(this);
-		return;
-	}
-	this.image = newCanvas(this.extent());
-	var ctx = this.image.getContext('2d');
-	if (this.costume.image.loaded)
-		ctx.drawImage(this.costume.image, 0, 0);
-};
-
-ScriptableMorph.prototype.getStage = function () {
-	if (this.parent instanceof StageMorph) {
+Scriptable.prototype.getStage = function () {
+	if (this.parent instanceof Stage) {
 		return this.parent;
-	} else if (this instanceof StageMorph) {
+	} else if (this instanceof Stage) {
 		return this;
 	}
 	return null;
 };
 
-ScriptableMorph.prototype.stepThreads = function () {
+Scriptable.prototype.stepThreads = function () {
 	for (var i = 0; i < this.threads.length; i++) {
 		this.threads[i].step();
 	}
 };
 
-ScriptableMorph.prototype.isRunning = function () {
+Scriptable.prototype.isRunning = function () {
 	for (var i = 0; i < this.threads.length; i++) {
 		if (!this.threads[i].done) {
 			return true;
@@ -554,7 +131,7 @@ ScriptableMorph.prototype.isRunning = function () {
 	return false;
 };
 
-ScriptableMorph.prototype.broadcast = function (broadcast) {
+Scriptable.prototype.broadcast = function (broadcast) {
 	for (var i = 0; i < this.threads.length; i++) {
 		if (this.threads[i].hat[0] === 'EventHatMorph' && this.threads[i].hat[1].toLowerCase() === broadcast.toLowerCase()) {
 			this.threads[i].start();
@@ -562,13 +139,13 @@ ScriptableMorph.prototype.broadcast = function (broadcast) {
 	}
 };
 
-ScriptableMorph.prototype.stopAll = function () {
+Scriptable.prototype.stopAll = function () {
 	for (var i = 0; i < this.threads.length; i++) {
 		this.threads[i].stop();
 	}
 };
 
-ScriptableMorph.prototype.evalCommand = function (command, args) {
+Scriptable.prototype.evalCommand = function (command, args) {
 	switch (command) {
 	case 'broadcast:':
 		return this.getStage().addBroadcastToQuene(args[0].toString());
@@ -664,19 +241,19 @@ ScriptableMorph.prototype.evalCommand = function (command, args) {
 	}
 };
 
-ScriptableMorph.prototype.fixLayout = function () {
+Scriptable.prototype.fixLayout = function () {
 	this.needsRedraw = true;
 }
 
-ScriptableMorph.prototype.isStage = function () {
+Scriptable.prototype.isStage = function () {
 	return false;
 };
 
-ScriptableMorph.prototype.getVariable = function (name) {
+Scriptable.prototype.getVariable = function (name) {
 	return this.variables.at(name) === undefined ? this.getStage().variables.at(name)[0] : this.variables.at(name)[0];
 };
 
-ScriptableMorph.prototype.changeVariable = function (name, value, relative) {
+Scriptable.prototype.changeVariable = function (name, value, relative) {
 	var o = this.getStage().variables;
 	if (this.variables.at(name) !== undefined) {
 		o = this.variables;
@@ -692,7 +269,7 @@ ScriptableMorph.prototype.changeVariable = function (name, value, relative) {
 	}
 };
 
-ScriptableMorph.prototype.addWatcher = function (variable, watcher) {
+Scriptable.prototype.addWatcher = function (variable, watcher) {
 	if (this.variables.at(variable) instanceof Array) {
 		this.variables.at(variable).push(watcher);
 	} else {
@@ -700,31 +277,31 @@ ScriptableMorph.prototype.addWatcher = function (variable, watcher) {
 	}
 };
 
-ScriptableMorph.prototype.getList = function (name) {
+Scriptable.prototype.getList = function (name) {
 	return this.lists.at(name) === undefined ? this.getStage().lists.at(name) : this.lists.at(name);
 };
 
 
-// StageMorph /////////////////////////////////////////////
-var StageMorph;
+// Stage /////////////////////////////////////////////
+var Stage;
 
-StageMorph.prototype = new ScriptableMorph();
-StageMorph.prototype.constructor = StageMorph;
-StageMorph.uber = ScriptableMorph.prototype;
+Stage.prototype = new Scriptable();
+Stage.prototype.constructor = Stage;
+Stage.uber = Scriptable.prototype;
 
-function StageMorph() {
+function Stage() {
 	this.init();
 }
 
-StageMorph.prototype.init = function () {
-	StageMorph.uber.init.call(this);
+Stage.prototype.init = function () {
+	Stage.uber.init.call(this);
 	this.turbo = false;
 	this.broadcastQuene = [];
 	this.timer = new Stopwatch();
 };
 
-StageMorph.prototype.initFields = function (fields, version) {
-	StageMorph.uber.initFields.call(this, fields, version);
+Stage.prototype.initFields = function (fields, version) {
+	Stage.uber.initFields.call(this, fields, version);
 	initFieldsNamed.call(this, ['zoom', 'hPan', 'vPan'], fields);
 	if (version == 1) return;
 	initFieldsNamed.call(this, ['obsoleteSavedState'], fields);
@@ -736,28 +313,27 @@ StageMorph.prototype.initFields = function (fields, version) {
 	initFieldsNamed.call(this, ['sceneStates', 'lists'], fields);
 };
 
-StageMorph.prototype.initBeforeLoad = function () {
-	StageMorph.uber.initBeforeLoad.call(this);
-	this.watchers = this.allChildren().filter(function (m) {
+Stage.prototype.initBeforeLoad = function () {
+	Stage.uber.initBeforeLoad.call(this);
+	/*this.watchers = this.children.filter(function (m) {
 		return m instanceof WatcherMorph;
-	});
+	});*/
 };
 
-StageMorph.prototype.setup = function () {
-	var canvas = this.world().worldCanvas;
-	var myself = this;
+Stage.prototype.drawOn = function (ctx) {
+	ctx.drawImage(this.costume.getImage(), 0, 0);
 	
-	/*canvas.addEventListener(
-		"mousemove",
-		function (event) {
-			myself.;
-		},
-		false
-	);*/
+	for (var i = 0; i < this.children.length; i++) {
+		this.children[i].drawOn && this.children[i].drawOn(ctx);
+	}
+}
+
+Stage.prototype.setup = function () {
+	this.drawOn(this.ctx);
 };
 
-StageMorph.prototype.step = function () {
-	StageMorph.uber.step.call(this);
+Stage.prototype.step = function () {
+	Stage.uber.step.call(this);
 	if (this.turbo && this.isRunning()) {
 		var stopwatch = new Stopwatch();
 		while (stopwatch.getElapsed() < 50) {
@@ -784,7 +360,7 @@ StageMorph.prototype.step = function () {
 	}
 };
 
-StageMorph.prototype.stepThreads = function () {
+Stage.prototype.stepThreads = function () {
 	for (var i = 0; i < this.broadcastQuene.length; i++) {
 		this.broadcast(this.broadcastQuene[i]);
 		for (var j = 0; j < this.sprites.length; j++) {
@@ -795,11 +371,11 @@ StageMorph.prototype.stepThreads = function () {
 	for (var i = 0; i < this.sprites.length; i++) {
 		this.sprites[i].stepThreads();
 	}
-	StageMorph.uber.stepThreads.call(this);
+	Stage.uber.stepThreads.call(this);
 };
 
-StageMorph.prototype.isRunning = function () {
-	var running = StageMorph.uber.isRunning.call(this);
+Stage.prototype.isRunning = function () {
+	var running = Stage.uber.isRunning.call(this);
 	
 	for (var i = 0; i < this.sprites.length; i++) {
 		running = running || this.sprites[i].isRunning();
@@ -807,64 +383,64 @@ StageMorph.prototype.isRunning = function () {
 	return running;
 };
 
-StageMorph.prototype.isStage = function () {
+Stage.prototype.isStage = function () {
 	return true;
 };
 
-StageMorph.prototype.evalCommand = function (command, args) {
+Stage.prototype.evalCommand = function (command, args) {
 	switch (command) {
 	default:
-		return StageMorph.uber.evalCommand.call(this, command, args);
+		return Stage.uber.evalCommand.call(this, command, args);
 	}
 };
 
-StageMorph.prototype.drawNew = function () {
-	StageMorph.uber.drawNew.call(this);
+Stage.prototype.drawNew = function () {
+	Stage.uber.drawNew.call(this);
 	if (this.penCanvas) {
 		var ctx = this.image.getContext('2d');
 		ctx.drawImage(this.penCanvas, 0, 0);
 	}
 };
 
-StageMorph.prototype.addBroadcastToQuene = function (broadcast) {
+Stage.prototype.addBroadcastToQuene = function (broadcast) {
 	this.broadcastQuene.push(broadcast);
 };
 
-StageMorph.prototype.stopAll = function () {
+Stage.prototype.stopAll = function () {
 	for (var i = 0; i < this.sprites.length; i++) {
 		this.sprites[i].stopAll();
 	}
-	StageMorph.uber.stopAll.call(this);
+	Stage.uber.stopAll.call(this);
 };
 
-StageMorph.prototype.start = function () {
+Stage.prototype.start = function () {
 	this.addBroadcastToQuene('Scratch-StartClicked');
 };
 
-StageMorph.prototype.setTurbo = function (flag) {
+Stage.prototype.setTurbo = function (flag) {
 	this.turbo = flag;
 	var fps = flag ? 0 : 60;
 	this.fps = fps;
 };
 
 
-// SpriteMorph ////////////////////////////////////////////
-var SpriteMorph;
+// Sprite ////////////////////////////////////////////
+var Sprite;
 
-SpriteMorph.prototype = new ScriptableMorph();
-SpriteMorph.prototype.constructor = SpriteMorph;
-SpriteMorph.uber = ScriptableMorph.prototype;
+Sprite.prototype = new Scriptable();
+Sprite.prototype.constructor = Sprite;
+Sprite.uber = Scriptable.prototype;
 
-function SpriteMorph() {
+function Sprite() {
 	this.init();
 }
 
-SpriteMorph.prototype.init = function () {
-	SpriteMorph.uber.init.call(this);
+Sprite.prototype.init = function () {
+	Sprite.uber.init.call(this);
 };
 
-SpriteMorph.prototype.initFields = function (fields, version) {
-	SpriteMorph.uber.initFields.call(this, fields, version);
+Sprite.prototype.initFields = function (fields, version) {
+	Sprite.uber.initFields.call(this, fields, version);
 	initFieldsNamed.call(this, ['visibility', 'scalePoint', 'heading', 'rotationStyle'], fields);
 	if (version == 1) return;
 	initFieldsNamed.call(this, ['volume', 'tempoBPM', 'draggable'], fields);
@@ -872,15 +448,52 @@ SpriteMorph.prototype.initFields = function (fields, version) {
 	initFieldsNamed.call(this, ['sceneStates', 'lists'], fields);
 };
 
-SpriteMorph.prototype.initBeforeLoad = function () {
-	SpriteMorph.uber.initBeforeLoad.call(this);
-	this.offset = new Point(0, 0);
-	this.setHeading(this.heading + 90);
-	this.fixLayout();
-	this.moveBy(this.offset.multiplyBy(-1));
+Sprite.prototype.initBeforeLoad = function () {
+	Sprite.uber.initBeforeLoad.call(this);
+	
+	//this.fixLayout();
+	//this.moveBy(this.offset.multiplyBy(-1));
 };
 
-SpriteMorph.prototype.evalCommand = function (command, args) {
+Sprite.prototype.drawOn = function (ctx) {
+	/*
+	this.extent()
+	.divideBy(2)
+	.add(
+		rc.subtract(
+			this.costume.extent()
+			.divideBy(2)
+		)
+		.round()
+		.rotateBy(radians(-(this.heading - 90).mod(360)))
+	)
+	.subtract(rc);
+	*/
+	
+	
+	
+	var te = this.extent();
+	var ce = this.costume.extent();
+	var rc = this.costume.rotationCenter;
+	
+	var angle = (-(this.heading - 90).mod(360)) * Math.PI / 180;
+	
+	var x = Math.round(rc.x - (ce.x / 2));
+	var y = Math.round(rc.y - (ce.y / 2));
+	
+	x = x * Math.cos(angle) - y * Math.sin(angle);
+	y = x * Math.sin(angle) + y * Math.cos(angle);
+	
+	x += (te.x / 2);
+	y += (te.y / 2);
+	
+	this.offset = new Point(x, y);
+	ctx.drawImage(this.costume.getImage(), this.bounds.origin.x, this.bounds.origin.y, this.extent().x, this.extent().y);
+	ctx.fillStyle = '#00FFFF';
+	ctx.fillRect(this.bounds.origin.x + this.offset.x, this.bounds.origin.y + this.offset.y, 10, 10);
+}
+
+Sprite.prototype.evalCommand = function (command, args) {
 	switch (command) {
 	case 'forward:':
 		var rad = Math.PI/180 * this.heading;
@@ -914,16 +527,16 @@ SpriteMorph.prototype.evalCommand = function (command, args) {
 	case 'hide':
 		return this.hide();
 	default:
-		return SpriteMorph.uber.evalCommand.call(this, command, args);
+		return Sprite.uber.evalCommand.call(this, command, args);
 	}
 };
 
-SpriteMorph.prototype.relativePosition = function () {
-	return this.topLeft().add(this.offset.add(this.costume.rotationCenter)).subtract(this.getStage().center()).multiplyBy(new Point(1, -1));
+Sprite.prototype.relativePosition = function () {
+	//return this.topLeft().add(this.offset.add(this.costume.rotationCenter)).subtract(this.getStage().center()).multiplyBy(new Point(1, -1));
 };
 
-SpriteMorph.prototype.setRelativePosition = function (point) {
-	var t3 = this.costume.rotationCenter;
+Sprite.prototype.setRelativePosition = function (point) {
+	/*var t3 = this.costume.rotationCenter;
 	var t7 = this.costume.extent().divideBy(2);
 	var t8 = radians(-(this.heading - 90).mod(360));
 	var t17 = this.extent();
@@ -931,24 +544,30 @@ SpriteMorph.prototype.setRelativePosition = function (point) {
 	var t19 = t17.divideBy(2).add(t18.rotateBy(t8));
 	this.offset = t19.subtract(t3);
 	this.setPosition(this.getStage().center().subtract(this.costume.rotationCenter.add(this.offset)).add(new Point(point.x, -point.y)));
+	*/
 };
 
-SpriteMorph.prototype.setHeading = function (angle) {
+Sprite.prototype.extent = function () {
+	return new Point(this.bounds.corner.x - this.bounds.origin.x, this.bounds.corner.y - this.bounds.origin.y);
+};
+
+
+Sprite.prototype.setHeading = function (angle) {
 	this.heading = ((angle + 179).mod(360) - 179);
-	this.fixLayout();
+	//this.fixLayout();
 };
 
-SpriteMorph.prototype.drawNew = function () {
+Sprite.prototype.drawNew = function () {
 	if (!this.costume)
 	{
-		ScriptableMorph.uber.drawNew.call(this);
+		Scriptable.uber.drawNew.call(this);
 		return;
 	}
 	this.image = newCanvas(this.extent());
 	var ctx = this.image.getContext('2d');
 	if (this.costume.image.loaded) {
 		var form = this.costume.form;
-		var r = radians(this.heading);
+		/*var r = radians(this.heading);
 		var center = new Point(form.width / 2, form.height / 2);
 		var offset = new Point(Math.abs(Math.sin(r)) * form.width + Math.abs(Math.cos(r)) * form.height, Math.abs(Math.cos(r)) * form.width + Math.abs(Math.sin(r)) * form.height).divideBy(2);
 		ctx.save();
@@ -956,23 +575,23 @@ SpriteMorph.prototype.drawNew = function () {
 		ctx.rotate(radians(this.heading - 90));
 		ctx.translate(-center.x, -center.y);
 		ctx.drawImage(this.costume.image, 0, 0);
-		ctx.restore();
+		ctx.restore();*/
 	}
 };
 
-SpriteMorph.prototype.fixLayout = function () {
-	SpriteMorph.uber.fixLayout.call(this);
+Sprite.prototype.fixLayout = function () {
+	/*Sprite.uber.fixLayout.call(this);
 	var form = this.costume.form;
 	var r = radians(this.heading);
 	this.changed();
 	this.silentSetExtent(new Point(Math.abs(Math.sin(r)) * form.width + Math.abs(Math.cos(r)) * form.height, Math.abs(Math.cos(r)) * form.width + Math.abs(Math.sin(r)) * form.height))
 	var rc = this.costume.rotationCenter;
-	this.offset = this.extent().divideBy(2).add(rc.subtract(this.costume.extent().divideBy(2)).round().rotateBy(radians(-(this.heading - 90).mod(360)))).subtract(rc);
+	this.offset = this.extent().divideBy(2).add(rc.subtract(this.costume.extent().divideBy(2)).round().rotateBy(radians(-(this.heading - 90).mod(360)))).subtract(rc);*/
 	this.setRelativePosition(this.relativePosition());
 };
 
-// Thread /////////////////////////////////////////////////
 
+// Thread /////////////////////////////////////////////////
 function Thread(object, script) {
 	this.init(object, script);
 }
@@ -1073,14 +692,7 @@ Thread.prototype.evalCommand = function (block) {
 		args.push(this.evalArg(block[i]));
 	}
 
-	//try {
-		return this.object.evalCommand(selector, args);
-	//} catch (e) {
-		//if (!(e instanceof UnknownSelectorError)) {
-			//throw e;
-		//}
-	//	this.stop();
-	//}
+	return this.object.evalCommand(selector, args);
 };
 
 Thread.prototype.evalArg = function (arg) {
@@ -1133,7 +745,6 @@ Thread.prototype.popState = function () {
 
 
 // Stopwatch //////////////////////////////////////////////
-
 function Stopwatch() {
 	this.init();
 }
@@ -1187,14 +798,7 @@ ImageMedia.prototype.initFields = function (fields, version) {
 
 ImageMedia.prototype.initBeforeLoad = function  () {
 	if(this.jpegBytes) {
-		var str = '';
-		for (var i = 0; i < this.jpegBytes.length; i++) {
-			str += String.fromCharCode(this.jpegBytes[i]);
-		}
-		this.form.base64 = 'data:image/jpeg;base64,' + btoa(str);
-	}
-	if (this.form.base64) {
-		this.base64 = this.form.base64;
+		this.base64 = 'data:image/jpeg;base64,' + btoa(jpegBytes);
 	}
 	if (this.base64) {
 		this.image = newImage(this.base64);
@@ -1203,8 +807,20 @@ ImageMedia.prototype.initBeforeLoad = function  () {
 	}
 };
 
+ImageMedia.prototype.getImage = function  () {
+	if (!this.image) {
+		this.image = this.form.getImage();
+	}
+	return this.image;
+};
+
 ImageMedia.prototype.extent = function () {
 	return this.form.extent();
+};
+
+ImageMedia.prototype.center = function () {
+	this.getImage();
+	return new Point(this.image.width / 2, this.image.height / 2);
 };
 
 
@@ -1244,22 +860,20 @@ SampledSound.prototype.initFields = function (fields, version) {
 };
 
 
-BoxMorph.prototype.initFields = function (fields, version) {
+/*BoxMorph.prototype.initFields = function (fields, version) {
 	BoxMorph.uber.initFields.call(this, fields, version);
 	initFieldsNamed.call(this, ['border', 'borderColor'], fields);
 };
 
 
 // WatcherMorph ///////////////////////////////////////////
-var WatcherMorph;
+function WatcherMorph() {
+	this.init();
+}
 
 WatcherMorph.prototype = new BoxMorph();
 WatcherMorph.prototype.constructor = WatcherMorph;
 WatcherMorph.uber = BoxMorph.prototype;
-
-function WatcherMorph() {
-	this.init();
-}
 
 WatcherMorph.prototype.init = function () {
 	WatcherMorph.uber.init.call(this);
@@ -1313,22 +927,20 @@ WatcherMorph.prototype.update = function () {
 
 
 // WatcherReadoutFrameMorph ///////////////////////////////
-var WatcherReadoutFrameMorph;
+function WatcherReadoutFrameMorph() {
+	this.init();
+}
 
 WatcherReadoutFrameMorph.prototype = new BoxMorph();
 WatcherReadoutFrameMorph.prototype.constructor = WatcherReadoutFrameMorph;
 WatcherReadoutFrameMorph.uber = BoxMorph.prototype;
-
-function WatcherReadoutFrameMorph() {
-	this.init();
-}
 
 WatcherReadoutFrameMorph.prototype.init = function () {
 	WatcherReadoutFrameMorph.uber.init.call(this);
 };
 
 WatcherReadoutFrameMorph.prototype.initFields = function (fields, version) {
-	WatcherReadoutFrameMorph.uber.initFields.call(this, fields, version);
+	//WatcherReadoutFrameMorph.uber.initFields.call(this, fields, version);
 	this.border = 1;
 };
 
@@ -1361,7 +973,7 @@ function WatcherSliderMorph() {
 
 WatcherSliderMorph.prototype.init = function () {
 	WatcherSliderMorph.uber.init.call(this);
-};
+};*/
 
 var squeakColors = [new Color(255, 255, 255),
 new Color(0, 0, 0),
