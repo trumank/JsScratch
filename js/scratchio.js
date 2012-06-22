@@ -134,7 +134,26 @@ ObjectStream.prototype.readFixedFormat = function (id) {
 		arr.isBitmap = true;
 		return arr;
 	case 14: //UTF8
-		return this.stream.getString(this.stream.getUint32());
+		var istr = this.stream.getString(this.stream.getUint32());
+		var str = '';
+		var i = 0, c, d, e;
+		while (i < istr.length) {
+			c = istr.charCodeAt(i);
+			if (c < 128) {
+				str += String.fromCharCode(c);
+				i++;
+			} else if ((c > 191) && (c < 224)) {
+				d = istr.charCodeAt(i + 1);
+				str += String.fromCharCode(((c & 31) << 6) | (d & 63));
+				i += 2;
+			} else {
+				d = istr.charCodeAt(i + 1);
+				e = istr.charCodeAt(i + 2);
+				str += String.fromCharCode(((c & 15) << 12) | ((d & 63) << 6) | (e & 63));
+				i += 3;
+			}
+		}
+		return str;
 	case 20: //Array
 	case 21: //OrderedCollection
 	case 24: //Dictionary
