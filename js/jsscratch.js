@@ -456,41 +456,32 @@ Sprite.prototype.initBeforeLoad = function () {
 };
 
 Sprite.prototype.drawOn = function (ctx) {
-	/*
-	this.extent()
-	.divideBy(2)
-	.add(
-		rc.subtract(
-			this.costume.extent()
-			.divideBy(2)
-		)
-		.round()
-		.rotateBy(radians(-(this.heading - 90).mod(360)))
-	)
-	.subtract(rc);
-	*/
-	
-	
-	
 	var te = this.extent();
 	var ce = this.costume.extent();
 	var rc = this.costume.rotationCenter;
+	var cc = new Point(ce.x / 2, ce.y / 2);
 	
-	var angle = (-(this.heading - 90).mod(360)) * Math.PI / 180;
+	var angle = this.heading.mod(360) * Math.PI / 180;
 	
-	var x = Math.round(rc.x - (ce.x / 2));
-	var y = Math.round(rc.y - (ce.y / 2));
+	var t18 = new Point(Math.round(-rc.x + ce.x), Math.round(-rc.y + ce.y));//for scale: .multiplyBy(scale);
+	var rotated = new Point(t18.x * Math.cos(angle) - t18.y * Math.sin(angle), t18.x * Math.sin(angle) + t18.y * Math.cos(angle));
+	var t19 = new Point(te.x / 2 + rotated.x, te.y / 2 + rotated.y);
+	this.offset = new Point(this.bounds.origin.x + t19.x, this.bounds.origin.y + t19.y);
+
 	
-	x = x * Math.cos(angle) - y * Math.sin(angle);
-	y = x * Math.sin(angle) + y * Math.cos(angle);
+	console.log(this.offset);
+	//this.offset = new Point(this.bounds.origin.x + rc.x * Math.cos(angle) - rc.y * Math.sin(angle), this.bounds.origin.y + rc.x * Math.sin(angle) + rc.y * Math.cos(angle));
 	
-	x += (te.x / 2);
-	y += (te.y / 2);
+	ctx.save();
+	ctx.translate(this.offset.x, this.offset.y);
+	ctx.rotate(angle);
+	ctx.translate(-rc.x, -rc.y);
+	ctx.drawImage(this.costume.getImage(), 0, 0);
+	ctx.strokeRect(0, 0, ce.x, ce.y);
+	ctx.restore();
 	
-	this.offset = new Point(x, y);
-	ctx.drawImage(this.costume.getImage(), this.bounds.origin.x, this.bounds.origin.y, this.extent().x, this.extent().y);
-	ctx.fillStyle = '#00FFFF';
-	ctx.fillRect(this.bounds.origin.x + this.offset.x, this.bounds.origin.y + this.offset.y, 10, 10);
+	ctx.fillStyle = '#FF0000';
+	ctx.fillRect(this.offset.x, this.offset.y, 10, 10);
 }
 
 Sprite.prototype.evalCommand = function (command, args) {
