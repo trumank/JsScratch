@@ -65,6 +65,10 @@ function initFieldsNamed(fields, fieldStream) {
 	}
 }
 
+window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
+	setTimeout(callback, 1000 / 60);
+};
+
 Number.prototype.mod = function (n) {
 	return ((this % n) + n) % n;
 }
@@ -80,7 +84,6 @@ function Scriptable() {
 
 Scriptable.prototype.init = function () {
 	this.threads = [];
-	this.fps = 60;
 };
 
 Scriptable.prototype.initFields = function (fields, version) {
@@ -97,7 +100,7 @@ Scriptable.prototype.initBeforeLoad = function () {
 	}
 
 	for (key in this.lists.obj) {
-		this.lists.put(key, this.lists.at(key).VARS[9]);
+		this.lists.put(key, this.lists.at(key)[9]);
 	}
 	
 	for (key in this.variables.obj) {
@@ -114,6 +117,10 @@ Scriptable.prototype.getStage = function () {
 		return this;
 	}
 	return null;
+};
+
+Scriptable.prototype.step = function () {
+	this.stepThreads();
 };
 
 Scriptable.prototype.stepThreads = function () {
@@ -241,10 +248,6 @@ Scriptable.prototype.evalCommand = function (command, args) {
 	}
 };
 
-Scriptable.prototype.fixLayout = function () {
-	this.needsRedraw = true;
-}
-
 Scriptable.prototype.isStage = function () {
 	return false;
 };
@@ -315,6 +318,7 @@ Stage.prototype.initFields = function (fields, version) {
 
 Stage.prototype.initBeforeLoad = function () {
 	Stage.uber.initBeforeLoad.call(this);
+	this.watchers = [];
 	/*this.watchers = this.children.filter(function (m) {
 		return m instanceof WatcherMorph;
 	});*/
@@ -323,13 +327,13 @@ Stage.prototype.initBeforeLoad = function () {
 Stage.prototype.drawOn = function (ctx) {
 	ctx.drawImage(this.costume.getImage(), 0, 0);
 	
-	for (var i = 0; i < this.children.length; i++) {
+	for (var i = this.children.length - 1; i >= 0; i--) {
 		this.children[i].drawOn && this.children[i].drawOn(ctx);
 	}
-}
+};
 
 Stage.prototype.setup = function () {
-	this.drawOn(this.ctx);
+	this.step();
 };
 
 Stage.prototype.step = function () {
@@ -342,22 +346,20 @@ Stage.prototype.step = function () {
 	} else {
 		this.stepThreads();
 	}
-
+	
 	for (var i = 0; i < this.sprites.length; i++) {
-		if (this.sprites[i].needsRedraw) {
-			this.sprites[i].drawNew();
-		}
-	}
-		this.drawNew();
-	
-	if (this.needsRedraw) {
-		this.drawNew();
+		this.sprites[i].step();
 	}
 
-	
 	for (var i = 0; i < this.watchers.length; i++) {
 		this.watchers[i].update();
 	}
+	
+	this.drawOn(this.ctx);
+	var self = this;
+	requestAnimationFrame(function () {
+		self.step();
+	});
 };
 
 Stage.prototype.stepThreads = function () {
@@ -368,9 +370,6 @@ Stage.prototype.stepThreads = function () {
 		}
 	}
 	this.broadcastQuene = [];
-	for (var i = 0; i < this.sprites.length; i++) {
-		this.sprites[i].stepThreads();
-	}
 	Stage.uber.stepThreads.call(this);
 };
 
@@ -450,38 +449,24 @@ Sprite.prototype.initFields = function (fields, version) {
 
 Sprite.prototype.initBeforeLoad = function () {
 	Sprite.uber.initBeforeLoad.call(this);
-	
-	//this.fixLayout();
-	//this.moveBy(this.offset.multiplyBy(-1));
+	this.position = this.bounds.origin.add(this.costume.rotationCenter);
+	this.hidden = (this.flags & 1) === 1;
 };
 
 Sprite.prototype.drawOn = function (ctx) {
-	var te = this.extent();
-	var ce = this.costume.extent();
+	if (this.hidden) {
+		return;
+	}
 	var rc = this.costume.rotationCenter;
-	var cc = new Point(ce.x / 2, ce.y / 2);
-	
 	var angle = this.heading.mod(360) * Math.PI / 180;
 	
-	var t18 = new Point(Math.round(-rc.x + ce.x), Math.round(-rc.y + ce.y));//for scale: .multiplyBy(scale);
-	var rotated = new Point(t18.x * Math.cos(angle) - t18.y * Math.sin(angle), t18.x * Math.sin(angle) + t18.y * Math.cos(angle));
-	var t19 = new Point(te.x / 2 + rotated.x, te.y / 2 + rotated.y);
-	this.offset = new Point(this.bounds.origin.x + t19.x, this.bounds.origin.y + t19.y);
-
-	
-	console.log(this.offset);
-	//this.offset = new Point(this.bounds.origin.x + rc.x * Math.cos(angle) - rc.y * Math.sin(angle), this.bounds.origin.y + rc.x * Math.sin(angle) + rc.y * Math.cos(angle));
-	
 	ctx.save();
-	ctx.translate(this.offset.x, this.offset.y);
+	ctx.translate(this.position.x, this.position.y);
 	ctx.rotate(angle);
+	ctx.scale(this.scalePoint.x, this.scalePoint.y);
 	ctx.translate(-rc.x, -rc.y);
 	ctx.drawImage(this.costume.getImage(), 0, 0);
-	ctx.strokeRect(0, 0, ce.x, ce.y);
 	ctx.restore();
-	
-	ctx.fillStyle = '#FF0000';
-	ctx.fillRect(this.offset.x, this.offset.y, 10, 10);
 }
 
 Sprite.prototype.evalCommand = function (command, args) {
@@ -489,7 +474,7 @@ Sprite.prototype.evalCommand = function (command, args) {
 	case 'forward:':
 		var rad = Math.PI/180 * this.heading;
 		var v = parseFloat(args[0]) || 0;
-		return this.setRelativePosition(this.relativePosition().add(new Point(Math.sin(rad) * v, Math.cos(rad) * v)));
+		return this.setPosition(this.relativePosition().add(new Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 	case 'heading:':
 		return this.setHeading(parseFloat(args[0]) || 0);
 	case 'turnRight:':
@@ -497,15 +482,15 @@ Sprite.prototype.evalCommand = function (command, args) {
 	case 'turnLeft:':
 		return this.setHeading(this.heading + (parseFloat(args[0]) || 0));
 	case 'gotoX:y:':
-		return this.setRelativePosition(new Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
+		return this.setPosition(new Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
 	case 'changeXposBy:':
-		return this.setRelativePosition(new Point(this.relativePosition().x + (parseFloat(args[0]) || 0), this.relativePosition().y));
+		return this.setPosition(new Point(this.relativePosition().x + (parseFloat(args[0]) || 0), this.relativePosition().y));
 	case 'xpos:':
-		return this.setRelativePosition(new Point(parseFloat(args[0]) || 0, this.relativePosition().y));
+		return this.setPosition(new Point(parseFloat(args[0]) || 0, this.relativePosition().y));
 	case 'changeYposBy:':
-		return this.setRelativePosition(new Point(this.relativePosition().x, this.relativePosition().y + (parseFloat(args[0]) || 0)));
+		return this.setPosition(new Point(this.relativePosition().x, this.relativePosition().y + (parseFloat(args[0]) || 0)));
 	case 'ypos:':
-		return this.setRelativePosition(new Point(this.relativePosition().x, parseFloat(args[0]) || 0));
+		return this.setPosition(new Point(this.relativePosition().x, parseFloat(args[0]) || 0));
 	case 'xpos':
 		return this.relativePosition().x;
 	case 'ypos':
@@ -523,19 +508,11 @@ Sprite.prototype.evalCommand = function (command, args) {
 };
 
 Sprite.prototype.relativePosition = function () {
-	//return this.topLeft().add(this.offset.add(this.costume.rotationCenter)).subtract(this.getStage().center()).multiplyBy(new Point(1, -1));
+	return this.position.multiplyBy(new Point(1, -1));
 };
 
-Sprite.prototype.setRelativePosition = function (point) {
-	/*var t3 = this.costume.rotationCenter;
-	var t7 = this.costume.extent().divideBy(2);
-	var t8 = radians(-(this.heading - 90).mod(360));
-	var t17 = this.extent();
-	var t18 = t3.subtract(t7).round();//for scale: .multiplyBy(scale);
-	var t19 = t17.divideBy(2).add(t18.rotateBy(t8));
-	this.offset = t19.subtract(t3);
-	this.setPosition(this.getStage().center().subtract(this.costume.rotationCenter.add(this.offset)).add(new Point(point.x, -point.y)));
-	*/
+Sprite.prototype.setPosition = function (point) {
+	this.position = point;
 };
 
 Sprite.prototype.extent = function () {
@@ -546,39 +523,6 @@ Sprite.prototype.extent = function () {
 Sprite.prototype.setHeading = function (angle) {
 	this.heading = ((angle + 179).mod(360) - 179);
 	//this.fixLayout();
-};
-
-Sprite.prototype.drawNew = function () {
-	if (!this.costume)
-	{
-		Scriptable.uber.drawNew.call(this);
-		return;
-	}
-	this.image = newCanvas(this.extent());
-	var ctx = this.image.getContext('2d');
-	if (this.costume.image.loaded) {
-		var form = this.costume.form;
-		/*var r = radians(this.heading);
-		var center = new Point(form.width / 2, form.height / 2);
-		var offset = new Point(Math.abs(Math.sin(r)) * form.width + Math.abs(Math.cos(r)) * form.height, Math.abs(Math.cos(r)) * form.width + Math.abs(Math.sin(r)) * form.height).divideBy(2);
-		ctx.save();
-		ctx.translate(offset.x, offset.y);
-		ctx.rotate(radians(this.heading - 90));
-		ctx.translate(-center.x, -center.y);
-		ctx.drawImage(this.costume.image, 0, 0);
-		ctx.restore();*/
-	}
-};
-
-Sprite.prototype.fixLayout = function () {
-	/*Sprite.uber.fixLayout.call(this);
-	var form = this.costume.form;
-	var r = radians(this.heading);
-	this.changed();
-	this.silentSetExtent(new Point(Math.abs(Math.sin(r)) * form.width + Math.abs(Math.cos(r)) * form.height, Math.abs(Math.cos(r)) * form.width + Math.abs(Math.sin(r)) * form.height))
-	var rc = this.costume.rotationCenter;
-	this.offset = this.extent().divideBy(2).add(rc.subtract(this.costume.extent().divideBy(2)).round().rotateBy(radians(-(this.heading - 90).mod(360)))).subtract(rc);*/
-	this.setRelativePosition(this.relativePosition());
 };
 
 
@@ -778,18 +722,17 @@ function ImageMedia() {
 ImageMedia.prototype.initFields = function (fields, version) {
 	ImageMedia.uber.initFields.call(this, fields, version);
 	initFieldsNamed.call(this, ['form', 'rotationCenter'], fields);
-	//this.compositeForm = this.jpegBytes = null;
 	if (version == 1) return;
 	initFieldsNamed.call(this, ['textBox'], fields);
 	if (version == 2) return;
 	initFieldsNamed.call(this, ['jpegBytes'], fields);
 	if (version == 3) return;
-	initFieldsNamed.call(this, ['compositeForm'], fields);
+	this.form = fields.nextField() || this.form;
 };
 
 ImageMedia.prototype.initBeforeLoad = function  () {
 	if(this.jpegBytes) {
-		this.base64 = 'data:image/jpeg;base64,' + btoa(jpegBytes);
+		this.base64 = 'data:image/jpeg;base64,' + btoa(this.jpegBytes);
 	}
 	if (this.base64) {
 		this.image = newImage(this.base64);
