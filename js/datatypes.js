@@ -147,7 +147,7 @@ function Color(r, g, b, a) {
 	this.r = r || 0;
 	this.g = g || 0;
 	this.b = b || 0;
-	this.a = a || 255;
+	this.a = (a === 0) ? 0 : a || 255;
 }
 
 Color.prototype.toString = function () {

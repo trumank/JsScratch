@@ -474,7 +474,7 @@ Sprite.prototype.evalCommand = function (command, args) {
 	case 'forward:':
 		var rad = Math.PI/180 * this.heading;
 		var v = parseFloat(args[0]) || 0;
-		return this.setPosition(this.relativePosition().add(new Point(Math.sin(rad) * v, Math.cos(rad) * v)));
+		return this.setRelativePosition(this.getRelativePosition().add(new Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 	case 'heading:':
 		return this.setHeading(parseFloat(args[0]) || 0);
 	case 'turnRight:':
@@ -482,19 +482,19 @@ Sprite.prototype.evalCommand = function (command, args) {
 	case 'turnLeft:':
 		return this.setHeading(this.heading + (parseFloat(args[0]) || 0));
 	case 'gotoX:y:':
-		return this.setPosition(new Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
+		return this.setRelativePosition(new Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
 	case 'changeXposBy:':
-		return this.setPosition(new Point(this.relativePosition().x + (parseFloat(args[0]) || 0), this.relativePosition().y));
+		return this.setRelativePosition(new Point(this.getRelativePosition().x + (parseFloat(args[0]) || 0), this.getRelativePosition().y));
 	case 'xpos:':
-		return this.setPosition(new Point(parseFloat(args[0]) || 0, this.relativePosition().y));
+		return this.setRelativePosition(new Point(parseFloat(args[0]) || 0, this.getRelativePosition().y));
 	case 'changeYposBy:':
-		return this.setPosition(new Point(this.relativePosition().x, this.relativePosition().y + (parseFloat(args[0]) || 0)));
+		return this.setRelativePosition(new Point(this.getRelativePosition().x, this.getRelativePosition().y + (parseFloat(args[0]) || 0)));
 	case 'ypos:':
-		return this.setPosition(new Point(this.relativePosition().x, parseFloat(args[0]) || 0));
+		return this.setRelativePosition(new Point(this.getRelativePosition().x, parseFloat(args[0]) || 0));
 	case 'xpos':
-		return this.relativePosition().x;
+		return this.getRelativePosition().x;
 	case 'ypos':
-		return this.relativePosition().y;
+		return this.getRelativePosition().y;
 	case 'heading':
 		return this.heading;
 
@@ -507,12 +507,12 @@ Sprite.prototype.evalCommand = function (command, args) {
 	}
 };
 
-Sprite.prototype.relativePosition = function () {
-	return this.position.multiplyBy(new Point(1, -1));
+Sprite.prototype.getRelativePosition = function () {
+	return this.position.subtract(this.getStage().origin()).multiplyBy(new Point(1, -1));
 };
 
-Sprite.prototype.setPosition = function (point) {
-	this.position = point;
+Sprite.prototype.setRelativePosition = function (point) {
+	this.position = point.multiplyBy(new Point(1, -1)).add(this.getStage().origin());
 };
 
 Sprite.prototype.extent = function () {
