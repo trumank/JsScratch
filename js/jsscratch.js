@@ -23,6 +23,7 @@ Player.prototype.read = function (data) {
 	this.info = objectStream.nextObject();
 	this.stage = objectStream.nextObject();
 	this.stage.ctx = this.canvas.getContext('2d');
+	this.stage.penCanvas = this.info.at('penTrails').getImage();
 	this.stage.setup();
 };
 
@@ -181,6 +182,8 @@ Scriptable.prototype.evalCommand = function (command, args) {
 		return this.getStage().timer.reset();
 	case 'timer':
 		return this.getStage().timer.getElapsed() / 1000;
+	case 'getAttribute:of:':
+		return coerceSprite(args[1]).getAttribute(args[0]);
 
 	case '+':
 		return (parseFloat(args[0]) || 0) + (parseFloat(args[1]) || 0);
@@ -229,10 +232,7 @@ Scriptable.prototype.evalCommand = function (command, args) {
 		return 0;
 
 	case 'clearPenTrails':
-		var canvas = this.getStage().penCanvas;
-		var ctx = canvas.getContext('2d');
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		return this.getStage().fixLayout();
+		return this.getStage().penCtx.clearRect(0, 0, canvas.width, canvas.height);
 
 	case 'readVariable':
 		return this.getVariable(args[0].toString());
@@ -249,6 +249,10 @@ Scriptable.prototype.evalCommand = function (command, args) {
 };
 
 Scriptable.prototype.isStage = function () {
+	return false;
+};
+
+Scriptable.prototype.getAttribute = function () {
 	return false;
 };
 
@@ -284,17 +288,22 @@ Scriptable.prototype.getList = function (name) {
 	return this.lists.at(name) === undefined ? this.getStage().lists.at(name) : this.lists.at(name);
 };
 
+Scriptable.prototype.coerceSprite = function (sprite) {
+	if (sprite instanceof Scriptable) {
+		return sprite;
+	}
+	return this.getStage().getSprite(sprite.toString());
+};
+
 
 // Stage /////////////////////////////////////////////
-var Stage;
+function Stage() {
+	this.init();
+}
 
 Stage.prototype = new Scriptable();
 Stage.prototype.constructor = Stage;
 Stage.uber = Scriptable.prototype;
-
-function Stage() {
-	this.init();
-}
 
 Stage.prototype.init = function () {
 	Stage.uber.init.call(this);
@@ -327,35 +336,37 @@ Stage.prototype.initBeforeLoad = function () {
 Stage.prototype.drawOn = function (ctx) {
 	ctx.drawImage(this.costume.getImage(), 0, 0);
 	
+	ctx.drawImage(this.penCanvas, 0, 0);
+	
 	for (var i = this.children.length - 1; i >= 0; i--) {
 		this.children[i].drawOn && this.children[i].drawOn(ctx);
 	}
 };
 
 Stage.prototype.setup = function () {
+	if (!this.penCanvas) {
+		this.penCanvas = newCanvas(this.bounds.width(), this.bounds.height())
+	}
+	this.penCtx = this.penCanvas.getContext('2d');
+	
 	this.step();
 };
 
 Stage.prototype.step = function () {
 	Stage.uber.step.call(this);
-	if (this.turbo && this.isRunning()) {
-		var stopwatch = new Stopwatch();
-		while (stopwatch.getElapsed() < 50) {
-			this.stepThreads();
+	var stopwatch = new Stopwatch();
+	while (stopwatch.getElapsed() < 50) {
+		for (var i = 0; i < this.sprites.length; i++) {
+			this.sprites[i].step();
 		}
-	} else {
-		this.stepThreads();
-	}
-	
-	for (var i = 0; i < this.sprites.length; i++) {
-		this.sprites[i].step();
-	}
 
-	for (var i = 0; i < this.watchers.length; i++) {
-		this.watchers[i].update();
+		for (var i = 0; i < this.watchers.length; i++) {
+			this.watchers[i].update();
+		}
+		
+		this.drawOn(this.ctx);
 	}
 	
-	this.drawOn(this.ctx);
 	var self = this;
 	requestAnimationFrame(function () {
 		self.step();
@@ -393,14 +404,6 @@ Stage.prototype.evalCommand = function (command, args) {
 	}
 };
 
-Stage.prototype.drawNew = function () {
-	Stage.uber.drawNew.call(this);
-	if (this.penCanvas) {
-		var ctx = this.image.getContext('2d');
-		ctx.drawImage(this.penCanvas, 0, 0);
-	}
-};
-
 Stage.prototype.addBroadcastToQuene = function (broadcast) {
 	this.broadcastQuene.push(broadcast);
 };
@@ -420,6 +423,16 @@ Stage.prototype.setTurbo = function (flag) {
 	this.turbo = flag;
 	var fps = flag ? 0 : 60;
 	this.fps = fps;
+};
+
+Stage.prototype.origin = function () {
+	return this.bounds.center();
+};
+
+Stage.prototype.getSprite = function (name) {
+	return this.sprites.filter(function (sprite) {
+		return sprite.objName === name;
+	})[0];
 };
 
 
@@ -472,7 +485,7 @@ Sprite.prototype.drawOn = function (ctx) {
 Sprite.prototype.evalCommand = function (command, args) {
 	switch (command) {
 	case 'forward:':
-		var rad = Math.PI/180 * this.heading;
+		var rad = Math.PI/180 * (this.heading + 90);
 		var v = parseFloat(args[0]) || 0;
 		return this.setRelativePosition(this.getRelativePosition().add(new Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 	case 'heading:':
@@ -502,6 +515,13 @@ Sprite.prototype.evalCommand = function (command, args) {
 		return this.show();
 	case 'hide':
 		return this.hide();
+	
+	case 'putPenDown':
+		return this.penDown = true;
+	case 'putPenUp':
+		return this.penDown = false;
+	case 'stampCostume':
+		return this.drawOn(this.getStage().penCtx);
 	default:
 		return Sprite.uber.evalCommand.call(this, command, args);
 	}
@@ -512,7 +532,16 @@ Sprite.prototype.getRelativePosition = function () {
 };
 
 Sprite.prototype.setRelativePosition = function (point) {
+	if (this.penDown) {
+		var ctx = this.getStage().penCtx;
+		ctx.beginPath();
+		ctx.moveTo(this.position.x, this.position.y);
+	}
 	this.position = point.multiplyBy(new Point(1, -1)).add(this.getStage().origin());
+	if (this.penDown) {
+		ctx.lineTo(this.position.x, this.position.y);
+		ctx.stroke();
+	}
 };
 
 Sprite.prototype.extent = function () {
@@ -522,7 +551,6 @@ Sprite.prototype.extent = function () {
 
 Sprite.prototype.setHeading = function (angle) {
 	this.heading = ((angle + 179).mod(360) - 179);
-	//this.fixLayout();
 };
 
 
@@ -996,3 +1024,4 @@ new Color(51, 51, 51),
 new Color(51, 102, 51),
 new Color(51, 153, 51)];
 
+//[16777215, 0, 16777215, 8421504, 16711680, 65280, 255, 65535, 16776960, 16711935, 2105376, 4210752, 6316128, 10461087, 12566463, 14671839, 526344, 1052688, 1579032, 2631720, 3158064, 3684408, 4737096, 5263440, 5789784, 6842472, 7368816, 7895160, 8882055, 9408399, 9934743, 10987431, 11513775, 12040119, 13092807, 13619151, 14145495, 15198183, 15724527, 16250871, 0, 13056, 26112, 39168, 52224, 65280, 51, 13107, 26163, 39219, 52275, 65331, 102, 13158, 26214, 39270, 52326, 65382, 153, 13209, 26265, 39321, 52377, 65433, 204, 13260, 26316, 39372, 52428, 65484, 255, 13311, 26367, 39423, 52479, 65535, 3342336, 3355392, 3368448, 3381504, 3394560, 3407616, 3342387, 3355443, 3368499, 3381555]
