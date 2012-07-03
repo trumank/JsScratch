@@ -128,8 +128,8 @@ jDataView.prototype = {
 		else {
 			value = '';
 			for (var i = 0; i < length; ++i) {
-				var char = this.getUint8(byteOffset + i);
-				value += String.fromCharCode(char > 127 ? 65533 : char);
+				var c = this.getUint8(byteOffset + i);
+				value += String.fromCharCode(c > 127 ? 65533 : c);
 			}
 		}
 
@@ -453,4 +453,4 @@ if (typeof module !== 'undefined') {
   module.exports = jDataView;
 }
 
-})(this);
+})(window);

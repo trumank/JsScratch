@@ -1,6 +1,6 @@
 "use strict";
 // Player /////////////////////////////////////////////////
-function Player(url, canvas) {
+function Player(url, canvas, autoplay) {
 	this.canvas = canvas;
 	this.url = url;
 	
@@ -10,11 +10,14 @@ function Player(url, canvas) {
 	if (xhr.overrideMimeType) {
 		xhr.overrideMimeType("text/plain; charset=x-user-defined");
 	}
-	var myself = this;
+	var self = this;
 	xhr.onload = function (e) {
-		myself.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
+		self.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
 			return str += String.fromCharCode(charIndex);
 		}, '') : xhr.responseText);
+		if (autoplay) {
+			self.start();
+		}
 	};
 	xhr.send();
 }
@@ -31,11 +34,11 @@ Player.prototype.read = function (data) {
 };
 
 Player.prototype.start = function () {
-
+	this.stage.start();
 };
 
 Player.prototype.stop = function () {
-
+	this.stage.stop();
 };
 
 Player.prototype.setTurbo = function (turbo) {
@@ -113,6 +116,20 @@ Scriptable.prototype.initBeforeLoad = function () {
 			this.variables.put(key, [this.variables.at(key)]);
 		}
 	}
+	
+	this.costumes = this.media.filter(function (e) {
+		return e instanceof ImageMedia;
+	});
+	this.sounds = this.media.filter(function (e) {
+		return e instanceof SoundMedia;
+	});
+	
+	this.costumeIndex = 1;
+	for (var i = 0; i < this.costumes.length; i++) {
+		if (this.costume === this.costumes[i]) {
+			this.costumeIndex = i;
+		}
+	}
 };
 
 Scriptable.prototype.getStage = function () {
@@ -163,16 +180,22 @@ Scriptable.prototype.evalCommand = function (command, args) {
 		return this.getStage().addBroadcastToQuene(args[0].toString());
 
 	case 'lookLike:':
-		var costume = null;
+		var costume;
 		for (var i = 0; i < this.media.length; i++) {
-			if (this.media[i] instanceof ImageMedia && this.media[i].mediaName.toLowerCase() === args[0].toLowerCase()) {
-				costume = this.media[i];
+			if (this.costumes[i].mediaName.toLowerCase() === args[0].toLowerCase()) {
+				costume = this.costumes[i];
+				this.costumeIndex = i;
 			}
 		}
 
 		if (costume) {
 			this.costume = costume;
-			this.fixLayout();
+		} else {
+			var i = parseFloat(args[0]) || 0;
+			if (this.costumes[i]) {
+				this.costume = this.costumes[i];
+				this.costumeIndex = i; 
+			}
 		}
 		return;
 	case 'say:':
@@ -248,7 +271,7 @@ Scriptable.prototype.evalCommand = function (command, args) {
 	case 'lineCountOfList:':
 		return this.getList(args[0].toString()).length;
 	default:
-		throw 'Unknown command: ' + command;
+		throw new Error('Unknown command: ' + command);
 	}
 };
 
@@ -359,7 +382,7 @@ Stage.prototype.setup = function () {
 Stage.prototype.step = function () {
 	Stage.uber.step.call(this);
 	var stopwatch = new Stopwatch();
-	while (stopwatch.getElapsed() < 50) {
+	//while (stopwatch.getElapsed() < 1000 / 60) {
 		for (var i = 0; i < this.sprites.length; i++) {
 			this.sprites[i].step();
 		}
@@ -369,7 +392,7 @@ Stage.prototype.step = function () {
 		}
 		
 		this.drawOn(this.ctx);
-	}
+	//}
 	
 	var self = this;
 	requestAnimationFrame(function () {
@@ -403,6 +426,9 @@ Stage.prototype.isStage = function () {
 
 Stage.prototype.evalCommand = function (command, args) {
 	switch (command) {
+	case 'nextBackground':
+		this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
+		return this.costume = this.costumes[this.costumeIndex];
 	default:
 		return Stage.uber.evalCommand.call(this, command, args);
 	}
@@ -825,121 +851,6 @@ SampledSound.prototype.initFields = function (fields, version) {
 	initFieldsNamed.call(this, ['envelopes', 'scaledVol', 'initialCount', 'samples', 'originalSamplingRate', 'samplesSize', 'scaledIncrement', 'scaledInitialIndex'], fields);
 };
 
-
-/*BoxMorph.prototype.initFields = function (fields, version) {
-	BoxMorph.uber.initFields.call(this, fields, version);
-	initFieldsNamed.call(this, ['border', 'borderColor'], fields);
-};
-
-
-// WatcherMorph ///////////////////////////////////////////
-function WatcherMorph() {
-	this.init();
-}
-
-WatcherMorph.prototype = new BoxMorph();
-WatcherMorph.prototype.constructor = WatcherMorph;
-WatcherMorph.uber = BoxMorph.prototype;
-
-WatcherMorph.prototype.init = function () {
-	WatcherMorph.uber.init.call(this);
-	this.edge = 4;
-	this.needsUpdate = false;
-};
-
-WatcherMorph.prototype.initFields = function (fields, version) {
-	WatcherMorph.uber.initFields.call(this, fields, version);
-};
-
-WatcherMorph.prototype.initBeforeLoad = function () {
-	var m1 = this.children[0];
-	m1.destroy();
-	this.label = m1.children[1];
-	this.frame = m1.children[3];
-	this.add(this.label);
-	this.add(this.frame);
-	this.fixLayout();
-	this.frame.label.VARS[10].addWatcher(this.frame.label.VARS[13], this);
-};
-
-WatcherMorph.prototype.fixLayout = function (fields, version) {
-	this.label.setPosition(this.topLeft().add(new Point(5, 5)));
-	this.frame.setPosition(this.topLeft().add(new Point(this.label.left + 4, 3)));
-	this.frame.fixLayout();
-	this.setExtent(this.frame.bottomRight().subtract(this.topLeft()).add(new Point(4, 3)));
-};
-
-WatcherMorph.prototype.setValue = function (value) {
-	this.needsUpdate = false;
-	var l = this.frame.label;
-	value = value.toString();
-	value = value.length > 30 ? (value.substr(0, 30) + '...') : value;
-	if (!l.text === value) {
-		return;
-	}
-	l.text = value;
-	l.changed();
-	l.drawNew();
-	l.changed();
-	this.fixLayout();
-};
-
-WatcherMorph.prototype.update = function () {
-	if (this.needsUpdate) {
-		var l = this.frame.label;
-		this.setValue(l.VARS[10].evalCommand((['readVariable'])[['getVar:'].indexOf(l.VARS[11])], [l.VARS[13]]));
-	}
-};
-
-
-// WatcherReadoutFrameMorph ///////////////////////////////
-function WatcherReadoutFrameMorph() {
-	this.init();
-}
-
-WatcherReadoutFrameMorph.prototype = new BoxMorph();
-WatcherReadoutFrameMorph.prototype.constructor = WatcherReadoutFrameMorph;
-WatcherReadoutFrameMorph.uber = BoxMorph.prototype;
-
-WatcherReadoutFrameMorph.prototype.init = function () {
-	WatcherReadoutFrameMorph.uber.init.call(this);
-};
-
-WatcherReadoutFrameMorph.prototype.initFields = function (fields, version) {
-	//WatcherReadoutFrameMorph.uber.initFields.call(this, fields, version);
-	this.border = 1;
-};
-
-WatcherReadoutFrameMorph.prototype.initBeforeLoad = function () {
-	this.label = this.children[0];
-	this.label.changed();
-	this.label.drawNew();
-	this.label.changed();
-};
-
-WatcherReadoutFrameMorph.prototype.fixLayout = function () {
-	this.label.setPosition(this.topLeft().add(new Point(12, 3)));
-	this.label.changed();
-	this.label.drawNew();
-	this.label.changed();
-	this.setExtent(this.label.bottomRight().subtract(this.topLeft()).add(new Point(12, 2)));
-};
-
-
-// WatcherSliderMorph /////////////////////////////////////
-var WatcherSliderMorph;
-
-WatcherSliderMorph.prototype = new SliderMorph();
-WatcherSliderMorph.prototype.constructor = WatcherSliderMorph;
-WatcherSliderMorph.uber = SliderMorph.prototype;
-
-function WatcherSliderMorph() {
-	this.init();
-}
-
-WatcherSliderMorph.prototype.init = function () {
-	WatcherSliderMorph.uber.init.call(this);
-};*/
 
 var squeakColors = [new Color(255, 255, 255),
 new Color(0, 0, 0),

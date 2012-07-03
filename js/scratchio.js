@@ -30,9 +30,9 @@ ObjectStream.prototype.init = function (stream) {
 
 	var version = this.readFileHeader();
 	if (version === -1) {
-		throw 'Not a Scratch project';
+		throw new Error('Not a Scratch project');
 	} else if (version !== 2) {
-		throw 'Project is too old: ' + version;
+		throw new Error('Project is too old: ' + version);
 	}
 
 	this.endOfInfo = stream.getUint32();
@@ -52,7 +52,7 @@ ObjectStream.prototype.readObjectHeader = function () {
 // get the next object in the stream
 ObjectStream.prototype.nextObject = function () {
 	if (!this.readObjectHeader()) {
-		throw ('Corrupt File');
+		throw new Error('Corrupt File');
 	}
 
 	var objectSize = this.stream.getUint32(),
@@ -185,7 +185,7 @@ ObjectStream.prototype.readFixedFormat = function (id) {
 	case 35: //ColorForm
 		return [this.readField(), this.readField(), this.readField(), this.readField(), this.readField(), this.readField()];
 	}
-	throw 'Unknown object: ' + id;
+	throw new Error('Unknown object: ' + id);
 };
 
 ObjectStream.prototype.fixReferences = function (objTable) {

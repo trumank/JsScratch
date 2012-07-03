@@ -8,12 +8,12 @@
 		<script type="text/javascript" src="./js/scratchio.js"></script>
 		<script type="text/javascript" src="./js/jdataview.js"></script>
 		<script type="text/javascript">
-			var player, version = "JsScratch June 5, 2012";
+			var player, version = "JsScratch July 3, 2012";
 			window.onload = function() {
 				var vars = [], hash;
 				var hashes = window.location.search.substr(1).split('&');
 				for (var i = 0; i < hashes.length; i++) {
-					hash = unescape(hashes[i].replace(/\+/g, " ")).split('=');
+					hash = unescape(hashes[i]).split('=');
 					vars[hash[0]] = hash[1];
 				}
 				player = new Player(vars['project'], document.getElementById('canvas'));
@@ -24,6 +24,7 @@
 		</script>
 	</head>
 	<body>
+		<div class="stop"></div>
 		<canvas id="canvas" width="480" height="360" style="user-select: none;" tabindex="1">
 			Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>
 		</canvas>
