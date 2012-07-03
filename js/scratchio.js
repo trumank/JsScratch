@@ -1,3 +1,4 @@
+"use strict";
 // FieldStream ////////////////////////////////////////////
 
 function FieldStream(fields) {
@@ -45,7 +46,7 @@ ObjectStream.prototype.readFileHeader = function () {
 // read the next object's header
 ObjectStream.prototype.readObjectHeader = function () {
 	this.temp = this.stream.index;
-	return this.stream.getString(10) === 'ObjS\1Stch\1';
+	return this.stream.getString(10) === 'ObjS\x01Stch\x01';
 };
 
 // get the next object in the stream

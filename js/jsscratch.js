@@ -1,3 +1,4 @@
+"use strict";
 // Player /////////////////////////////////////////////////
 function Player(url, canvas) {
 	this.canvas = canvas;
@@ -23,7 +24,9 @@ Player.prototype.read = function (data) {
 	this.info = objectStream.nextObject();
 	this.stage = objectStream.nextObject();
 	this.stage.ctx = this.canvas.getContext('2d');
-	this.stage.penCanvas = this.info.at('penTrails').getImage();
+	if (this.info.at('penTrails')) {
+		this.stage.penCanvas = this.info.at('penTrails').getImage();
+	}
 	this.stage.setup();
 };
 
@@ -100,6 +103,7 @@ Scriptable.prototype.initBeforeLoad = function () {
 		}
 	}
 
+	var key;
 	for (key in this.lists.obj) {
 		this.lists.put(key, this.lists.at(key)[9]);
 	}
