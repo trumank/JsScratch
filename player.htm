@@ -16,7 +16,7 @@
 					hash = unescape(hashes[i].replace(/\+/g, " ")).split('=');
 					vars[hash[0]] = hash[1];
 				}
-				player = new Player(vars['project'], document.getElementById('canvas'));
+				player = new jsc.Player(vars['project'], document.getElementById('canvas'));
 				document.onselectstart = function (e) {
 					e.preventDefault();
 				};
