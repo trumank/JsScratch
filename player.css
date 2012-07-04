@@ -1,0 +1,51 @@
+.player {
+	cursor: default;
+}
+
+.player .header {
+	width: 480px;
+	height: 23px;
+	background: #AAAAAA;
+	border: solid 1px black;
+	border-bottom: none;
+}
+
+.player .title {
+	float: left;
+	font: 12px Arial, Helvetica, sans-serif;
+	margin: 3px 3px;
+}
+
+.player .button {
+	position: relative;
+	float: right;
+	margin: 0px 5px;
+}
+
+.player .stop {
+	width: 17px;
+	height: 17px;
+	/*left: 432px;*/
+	top: 3px;
+	background: url('img/stop.gif');
+}
+
+.player .stop:hover {
+	background: url('img/stop_h.gif');
+}
+
+.player .start {
+	width: 20px;
+	height: 17px;
+	/*left: 420px;*/
+	top: 3px;
+	background: url('img/flag.gif');
+}
+
+.player .start:hover {
+	background: url('img/flag_h.gif');
+}
+
+.player canvas {
+	border: solid 1px black;
+}
