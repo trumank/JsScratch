@@ -20,48 +20,50 @@
 	position: relative;
 	float: right;
 	margin: 0px 5px;
+	background: url('icons.png');
 }
 
 .player .stop {
+	background-position: -17px 0px;
 	width: 17px;
 	height: 17px;
 	top: 3px;
-	background: url('img/stopButton.png');
 }
 
 .player .stop:hover {
-	background: url('img/stopButtonOver.png');
+	background-position: -17px -17px;
 }
 
 .player .start {
+	background-position: -17px -34px;
 	width: 20px;
 	height: 17px;
 	top: 3px;
-	background: url('img/goButton.png');
 }
 
 .player .start:hover {
-	background: url('img/goButtonOver.png');
+	background-position: -17px -51px;
 }
 
 .player input[type="checkbox"] {
 	width: 17px;
 	height: 17px;
 	top: 3px;
-    background: url('img/turboOff.png');
     -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 .player input[type="checkbox"]:hover {
-    background: url('img/turboOffOver.png');
+	background-position: 0px -51px;
 }
 
 .player input[type="checkbox"]:checked {
-    background: url('img/turboOn.png');
+	background-position: 0px 0px;
 }
 
 .player input[type="checkbox"]:checked:hover {
-    background: url('img/turboOnOver.png');
+	background-position: 0px -17px;
 }
 
 .player .status {

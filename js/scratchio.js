@@ -195,7 +195,9 @@
 			var os = obj[1];
 			
 			for (var j = 0; j < os.length; j++) {
-				os[j] = os[j] instanceof jsc.Ref ? newObj[os[j].index] : os[j]
+				if (os[j] instanceof jsc.Ref) {
+					os[j] = newObj[os[j].index];
+				}
 			}
 			
 			switch (obj[0]) {
