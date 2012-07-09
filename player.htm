@@ -19,7 +19,7 @@
 				}
 				var stuff = jsc.createPlayer(vars['project'], false);
 				player = stuff[1];
-				document.body.insertBefore(stuff[0], document.body.children[0]);
+				document.body.appendChild(stuff[0]);
 				document.onselectstart = function (e) {
 					e.preventDefault();
 				};
@@ -27,17 +27,5 @@
 		</script>
 	</head>
 	<body>
-		<!--<div class="player">
-			<div class="header">
-				<span class="title">JsScratch - July 4, 2012</span>
-				<div class="button stop"></div>
-				<div class="button start"></div>
-			</div>
-			<canvas id="canvas" width="480" height="360" tabindex="1">
-				Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>
-			</canvas>
-		</div>-->
-		<br/>
-		<textarea id="log" rows="10" readonly="readonly" style="width: 482px;"></textarea>
 	</body>
 </html>

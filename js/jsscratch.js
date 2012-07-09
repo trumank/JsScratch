@@ -28,7 +28,7 @@
 		var objectStream = new jsc.ObjectStream(new jDataView(data, undefined, undefined, false));
 		this.info = objectStream.nextObject();
 		this.stage = objectStream.nextObject();
-		this.stage.ctx = this.canvas.getContext('2d');
+		this.stage.canvas = this.canvas;
 		if (this.info.at('penTrails')) {
 			this.stage.penCanvas = this.info.at('penTrails').getImage();
 		}
@@ -40,11 +40,15 @@
 	};
 
 	jsc.Player.prototype.stop = function () {
-		this.stage.stop();
+		this.stage.stopAll();
 	};
 
 	jsc.Player.prototype.setTurbo = function (turbo) {
-
+		this.stage.turbo = turbo;
+	};
+	
+	jsc.Player.prototype.isTurbo = function () {
+		return this.stage.turbo;
 	};
 
 
@@ -78,6 +82,10 @@
 		setTimeout(callback, 1000 / 60);
 	};
 	
+	window.addEventListener('error', function (e) {
+		alert('Error:\n' + e.message + (e.lineno ? ('\nLine number: ' + e.lineno) : '') + (e.filename && e.filename !== 'undefined' ? ('\nFile: ' + e.filename) : ''));
+	}, false);
+	
 	jsc.createPlayer = function (url, autoplay) {
 		var container = document.createElement('div');
 		container.setAttribute('class', 'player');
@@ -98,16 +106,34 @@
 		start.setAttribute('class', 'button start');
 		header.appendChild(start);
 		
+		var turbo = document.createElement('div');
+		turbo.setAttribute('class', 'button turbo');
+		header.appendChild(turbo);
+		
 		container.appendChild(header);
 		
 		var canvas = document.createElement('canvas');
 		canvas.setAttribute('width', '480');
 		canvas.setAttribute('height', '360');
 		canvas.setAttribute('tabindex', '1');
+		canvas.innerHTML = 'Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>';
 		container.appendChild(canvas);
 		
 		var player = new jsc.Player(url, canvas, autoplay);
 		
+		canvas.addEventListener('mousedrag', function (e) {
+			e.preventDefault();
+		}, false);
+		
+		turbo.onclick = function () {
+			if (player.isTurbo()) {
+				player.setTurbo(false);
+				turbo.style.background = 'url("img/turbo_off.gif")';
+			} else {
+				player.setTurbo(true);
+				turbo.style.background = 'url("img/turbo_on.gif")';
+			}
+		};
 		start.onclick = function () {
 			player.start();
 		};
@@ -146,8 +172,12 @@
 		}
 
 		var key;
-		for (key in this.lists.obj) {
-			this.lists.put(key, this.lists.at(key)[9]);
+		if (this.lists) {
+			for (key in this.lists.obj) {
+				this.lists.put(key, this.lists.at(key)[9]);
+			}
+		} else {
+			this.lists = [];
 		}
 		
 		for (key in this.variables.obj) {
@@ -155,6 +185,15 @@
 				this.variables.put(key, [this.variables.at(key)]);
 			}
 		}
+		
+		this.costumes = this.media.filter(function (e) {
+			return e instanceof jsc.ImageMedia;
+		});
+		this.sounds = this.media.filter(function (e) {
+			return e instanceof jsc.SoundMedia;
+		});
+		
+		this.costumeIndex = this.costumes.indexOf(this.costume);
 	};
 
 	jsc.Scriptable.prototype.getStage = function () {
@@ -202,35 +241,31 @@
 	jsc.Scriptable.prototype.evalCommand = function (command, args) {
 		switch (command) {
 		case 'broadcast:':
-			return this.getStage().addBroadcastToQuene(args[0].toString());
+			return this.getStage().addBroadcastToQueue(args[0].toString());
+		case 'stopAll':
+			return this.getStage().stopAll();
 
-		case 'lookLike:':
-			var costume = null;
-			for (var i = 0; i < this.media.length; i++) {
-				if (this.media[i] instanceof ImageMedia && this.media[i].mediaName.toLowerCase() === args[0].toLowerCase()) {
-					costume = this.media[i];
-				}
-			}
-
-			if (costume) {
-				this.costume = costume;
-				this.fixLayout();
-			}
+		case 'setGraphicEffect:to:':
 			return;
-		case 'say:':
-			return console.log(args[0]);
-
+		case 'changeGraphicEffect:by:':
+			return;
+		
 		case 'mouseX':
-			return this.world().hand.position().x - this.getStage().center().x;
+			return this.getStage().mouse.x - this.getStage().origin().x;
 		case 'mouseY':
-			return -(this.world().hand.position().y - this.getStage().center().y);
+			return this.getStage().origin().y - this.getStage().mouse.y;
+		case 'keyPressed:':
+			return this.getStage().keys[args[0].toString().toUpperCase().charCodeAt(0)];
 		case 'timerReset':
 			return this.getStage().timer.reset();
 		case 'timer':
 			return this.getStage().timer.getElapsed() / 1000;
 		case 'getAttribute:of:':
-			return coerceSprite(args[1]).getAttribute(args[0]);
+			return this.coerceSprite(args[1]).getAttribute(args[0]);
 
+		case 'playSound:':
+			return;
+		
 		case '+':
 			return (parseFloat(args[0]) || 0) + (parseFloat(args[1]) || 0);
 		case '-':
@@ -239,6 +274,10 @@
 			return (parseFloat(args[0]) || 0) * (parseFloat(args[1]) || 0);
 		case '/':
 			return (parseFloat(args[0]) || 0) / (parseFloat(args[1]) || 0);
+		case 'randomFrom:to:':
+			var n1 = parseFloat(args[0]) || 0;
+			var n2 = parseFloat(args[1]) || 0;
+			return Math.round(Math.random() * (n2 - n1) + n1);
 		case '<':
 			var a = parseFloat(args[0]);
 			var b = parseFloat(args[1]);
@@ -249,6 +288,12 @@
 			var a = parseFloat(args[0]);
 			var b = parseFloat(args[1]);
 			return (isNaN(a) ? args[0] : a) > (isNaN(b) ? args[1] : b);
+		case '&':
+			return args[0] && args[1];
+		case '|':
+			return args[0] || args[1];
+		case 'not':
+			return !args[0];
 		case 'concatenate:with:':
 			return args[0].toString() + args[1].toString();
 		case 'letter:of:':
@@ -278,15 +323,35 @@
 			return 0;
 
 		case 'clearPenTrails':
-			return this.getStage().penCtx.clearRect(0, 0, canvas.width, canvas.height);
+			return this.getStage().penCtx.clearRect(0, 0, this.getStage().penCanvas.width, this.getStage().penCanvas.height);
 
 		case 'readVariable':
 			return this.getVariable(args[0].toString());
 		case 'changeVariable':
 			return this.changeVariable(args[0], args[2], args[1] === 'changeVar:by:');
 
+		case 'append:toList:':
+			return this.getList(args[1].toString()).push(args[0]);
+		case 'deleteLine:ofList:':
+			var list = this.getList(args[1].toString());
+			var i = -1;
+			if (args[0] === 'last') {
+				i = list.length - 1;
+			} else if (args[0] === 'all') {
+				return list.splice(0, list.length)
+			} else {
+				i = parseInt(args[0]) - 1;
+			}
+			if (i && i !== -1) {
+				list.splice(i, 1);
+			}
+			return;
+		case 'setLine:ofList:to:':
+			var list = this.getList(args[1].toString());
+			return list[this.toListLine(args[0], list)] = args[2];
 		case 'getLine:ofList:':
-			return this.getList(args[1].toString())[(parseFloat(args[0]) || 0) - 1];
+			var list = this.getList(args[1].toString());
+			return list[this.toListLine(args[0], list)];
 		case 'lineCountOfList:':
 			return this.getList(args[0].toString()).length;
 		default:
@@ -333,9 +398,30 @@
 	jsc.Scriptable.prototype.getList = function (name) {
 		return this.lists.at(name) === undefined ? this.getStage().lists.at(name) : this.lists.at(name);
 	};
+	
+	jsc.Scriptable.prototype.toListLine = function (arg, list) {
+		var i = parseInt(arg);
+		if (i) {
+			if (i >= 1 && i <= list.length) {
+				return i - 1;
+			} else {
+				return -1;
+			}
+		}
+		
+		switch (arg.toString()) {
+		case 'first':
+			return 0;
+		case 'last':
+			return list.length - 1;
+		case 'any':
+			return Math.floor(Math.random() * list.length);
+		}
+		return -1;
+	};
 
 	jsc.Scriptable.prototype.coerceSprite = function (sprite) {
-		if (sprite instanceof Scriptable) {
+		if (sprite instanceof jsc.Scriptable) {
 			return sprite;
 		}
 		return this.getStage().getSprite(sprite.toString());
@@ -354,8 +440,13 @@
 	jsc.Stage.prototype.init = function () {
 		jsc.Stage.uber.init.call(this);
 		this.turbo = false;
-		this.broadcastQuene = [];
+		this.broadcastQueue = [];
 		this.timer = new jsc.Stopwatch();
+		this.keys = [];
+		this.mouse = new jsc.Point(0, 0);
+		for (var i = 0; i < 255; i++) {
+			this.keys.push(false);
+		}
 	};
 
 	jsc.Stage.prototype.initFields = function (fields, version) {
@@ -390,18 +481,31 @@
 	};
 
 	jsc.Stage.prototype.setup = function () {
+		this.ctx = this.canvas.getContext('2d');
 		if (!this.penCanvas) {
 			this.penCanvas = jsc.newCanvas(this.bounds.width(), this.bounds.height())
 		}
 		this.penCtx = this.penCanvas.getContext('2d');
 		
 		this.step();
+		
+		var self = this;
+		this.canvas.addEventListener('keydown', function (e) {
+			self.keydown(e);
+		}, false);
+		this.canvas.addEventListener('keyup', function (e) {
+			self.keyup(e);
+		}, false);
+		
+		this.canvas.addEventListener('mousemove', function (e) {
+			self.mousemove(e);
+		}, false);
 	};
 
 	jsc.Stage.prototype.step = function () {
 		jsc.Stage.uber.step.call(this);
 		var stopwatch = new jsc.Stopwatch();
-		//while (stopwatch.getElapsed() < 10) {
+		do {
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
 			}
@@ -411,7 +515,7 @@
 			}
 			
 			this.drawOn(this.ctx);
-		//}
+		} while (stopwatch.getElapsed() < 5 && this.turbo)
 		
 		var self = this;
 		requestAnimationFrame(function () {
@@ -420,13 +524,13 @@
 	};
 
 	jsc.Stage.prototype.stepThreads = function () {
-		for (var i = 0; i < this.broadcastQuene.length; i++) {
-			this.broadcast(this.broadcastQuene[i]);
+		for (var i = 0; i < this.broadcastQueue.length; i++) {
+			this.broadcast(this.broadcastQueue[i]);
 			for (var j = 0; j < this.sprites.length; j++) {
-				this.sprites[j].broadcast(this.broadcastQuene[i]);
+				this.sprites[j].broadcast(this.broadcastQueue[i]);
 			}
 		}
-		this.broadcastQuene = [];
+		this.broadcastQueue = [];
 		jsc.Stage.uber.stepThreads.call(this);
 	};
 
@@ -445,40 +549,76 @@
 
 	jsc.Stage.prototype.evalCommand = function (command, args) {
 		switch (command) {
+		case 'showBackground:':
+			var costume;
+			
+			var index = (parseInt(args[0]) || 0) - 1;
+			if (index >= 0 && index < this.costumes.length) {
+				costume = this.costumes[index];
+			} else {
+				for (var i = 0; i < this.costumes.length; i++) {
+					if (this.costumes[i].name.toLowerCase() === args[0].toLowerCase()) {
+						costume = this.costumes[i];
+						index = i;
+					}
+				}
+			}
+			if (costume) {
+				this.costume = costume;
+				this.costumeIndex = index;
+			}
+			return;
 		default:
 			return jsc.Stage.uber.evalCommand.call(this, command, args);
 		}
 	};
 
-	jsc.Stage.prototype.addBroadcastToQuene = function (broadcast) {
-		this.broadcastQuene.push(broadcast);
+	jsc.Stage.prototype.addBroadcastToQueue = function (broadcast) {
+		this.broadcastQueue.push(broadcast);
 	};
 
 	jsc.Stage.prototype.stopAll = function () {
 		for (var i = 0; i < this.sprites.length; i++) {
 			this.sprites[i].stopAll();
 		}
-		Stage.uber.stopAll.call(this);
+		jsc.Stage.uber.stopAll.call(this);
 	};
 
 	jsc.Stage.prototype.start = function () {
-		this.addBroadcastToQuene('Scratch-StartClicked');
-	};
-
-	jsc.Stage.prototype.setTurbo = function (flag) {
-		this.turbo = flag;
-		var fps = flag ? 0 : 60;
-		this.fps = fps;
+		this.addBroadcastToQueue('Scratch-StartClicked');
 	};
 
 	jsc.Stage.prototype.origin = function () {
 		return this.bounds.center();
 	};
 
+	jsc.Stage.prototype.toScratchCoords = function (point) {
+		return point.subtract(this.bounds.center()).multiplyBy(new jsc.Point(1, -1));
+	};
+
+	jsc.Stage.prototype.fromScratchCoords = function (point) {
+		return point.multiplyBy(new jsc.Point(1, -1)).add(this.bounds.center());
+	};
+
 	jsc.Stage.prototype.getSprite = function (name) {
 		return this.sprites.filter(function (sprite) {
 			return sprite.objName === name;
 		})[0];
+	};
+	
+	jsc.Stage.prototype.keydown = function (e) {
+		e.preventDefault();
+		this.keys[e.keyCode] = true;
+	};
+	
+	jsc.Stage.prototype.keyup = function (e) {
+		e.preventDefault();
+		this.keys[e.keyCode] = false;
+	};
+	
+	jsc.Stage.prototype.mousemove = function (e) {
+		e.preventDefault();
+		this.mouse = new jsc.Point(e.offsetX, e.offsetY);
 	};
 
 
@@ -509,6 +649,7 @@
 		jsc.Sprite.uber.initBeforeLoad.call(this);
 		this.position = this.bounds.origin.add(this.costume.rotationCenter);
 		this.hidden = (this.flags & 1) === 1;
+		this.penColor = new jsc.Color(0, 0, 255);
 	};
 
 	jsc.Sprite.prototype.drawOn = function (ctx) {
@@ -520,8 +661,10 @@
 		
 		ctx.save();
 		ctx.translate(this.position.x, this.position.y);
-		ctx.rotate(angle);
-		ctx.scale(this.scalePoint.x, this.scalePoint.y);
+		if (this.rotationStyle === 'normal') {
+			ctx.rotate(angle);
+		}
+		ctx.scale(this.rotationStyle === 'leftRight' && (this.heading - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x, this.scalePoint.y);
 		ctx.translate(-rc.x, -rc.y);
 		ctx.drawImage(this.costume.getImage(), 0, 0);
 		ctx.restore();
@@ -530,15 +673,15 @@
 	jsc.Sprite.prototype.evalCommand = function (command, args) {
 		switch (command) {
 		case 'forward:':
-			var rad = Math.PI/180 * (this.heading + 90);
+			var rad = Math.PI/180 * (90 - this.heading);
 			var v = parseFloat(args[0]) || 0;
 			return this.setRelativePosition(this.getRelativePosition().add(new jsc.Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 		case 'heading:':
-			return this.setHeading(parseFloat(args[0]) || 0);
+			return this.heading = (parseFloat(args[0]) || 0) - 90;
 		case 'turnRight:':
-			return this.setHeading(this.heading + (parseFloat(args[0]) || 0));
+			return this.heading += (parseFloat(args[0]) || 0);
 		case 'turnLeft:':
-			return this.setHeading(this.heading + (parseFloat(args[0]) || 0));
+			return this.heading -= (parseFloat(args[0]) || 0);
 		case 'gotoX:y:':
 			return this.setRelativePosition(new jsc.Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
 		case 'changeXposBy:':
@@ -547,6 +690,8 @@
 			return this.setRelativePosition(new jsc.Point(parseFloat(args[0]) || 0, this.getRelativePosition().y));
 		case 'changeYposBy:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, this.getRelativePosition().y + (parseFloat(args[0]) || 0)));
+		case 'bounceOffEdge':
+			return;
 		case 'ypos:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, parseFloat(args[0]) || 0));
 		case 'xpos':
@@ -554,21 +699,50 @@
 		case 'ypos':
 			return this.getRelativePosition().y;
 		case 'heading':
-			return this.heading;
+			return (this.heading + 90 + 179).mod(360) - 179;
 
+		case 'lookLike:':
+			var costume;
+			
+			var index = (parseInt(args[0]) || 0) - 1;
+			if (index >= 0 && index < this.costumes.length) {
+				costume = this.costumes[index];
+			} else {
+				for (var i = 0; i < this.costumes.length; i++) {
+					if (this.costumes[i].name.toLowerCase() === args[0].toLowerCase()) {
+						costume = this.costumes[i];
+						index = i;
+					}
+				}
+			}
+			if (costume) {
+				this.costume = costume;
+				this.costumeIndex = index;
+			}
+			return;
+		case 'nextCostume':
+			this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
+			return this.costume = this.costumes[this.costumeIndex];
+		case 'say:':
+			return console.log(args[0]);
 		case 'show':
 			return this.show();
 		case 'hide':
 			return this.hide();
+		case 'comeToFront':
+			var children = this.getStage().children;
+			return children.unshift(children.splice(children.indexOf(this), 1)[0]);
 		
 		case 'putPenDown':
 			return this.penDown = true;
 		case 'putPenUp':
 			return this.penDown = false;
+		case 'penColor:':
+			return this.penColor = args[0];
 		case 'stampCostume':
 			return this.drawOn(this.getStage().penCtx);
 		default:
-			return Sprite.uber.evalCommand.call(this, command, args);
+			return jsc.Sprite.uber.evalCommand.call(this, command, args);
 		}
 	};
 
@@ -580,6 +754,7 @@
 		if (this.penDown) {
 			var ctx = this.getStage().penCtx;
 			ctx.beginPath();
+			ctx.strokeStyle = this.penColor.toString();
 			ctx.moveTo(this.position.x, this.position.y);
 		}
 		this.position = point.multiplyBy(new jsc.Point(1, -1)).add(this.getStage().origin());
@@ -593,9 +768,12 @@
 		return new jsc.Point(this.bounds.corner.x - this.bounds.origin.x, this.bounds.corner.y - this.bounds.origin.y);
 	};
 
+	jsc.Sprite.prototype.show = function () {
+		this.hidden = false;
+	};
 
-	jsc.Sprite.prototype.setHeading = function (angle) {
-		this.heading = ((angle + 179).mod(360) - 179);
+	jsc.Sprite.prototype.hide = function () {
+		this.hidden = true;
 	};
 
 
@@ -616,7 +794,7 @@
 		this.stack = [];
 		this.done = this.yield = false;
 		this.timer = null;
-		this.temp = -1;
+		this.temp = null;
 		this.script = this.wholeScript;
 	};
 
@@ -625,7 +803,7 @@
 		this.stack = [];
 		this.done = this.yield = true;
 		this.timer = null;
-		this.temp = -1;
+		this.temp = null;
 		this.script = this.wholeScript;
 	};
 
@@ -657,41 +835,87 @@
 		{
 		case 'doIf':
 			if (this.evalArg(block[1])) {
-				this.evalCommandList(block[2], false);
+				this.evalCommandList(false, block[2]);
+			}
+			return;
+		case 'doPlaySoundAndWait':
+			return;
+		case 'doBroadcastAndWait':
+			var self = this;
+			if (this.temp === null) {
+				this.temp = this.evalArg(block[1]).toString();
+				this.object.getStage().addBroadcastToQueue(this.temp);
+				this.evalCommandList(true);
+				return;
+			}
+			
+			var filter = function (thread) {
+				return thread.hat[0] === 'EventHatMorph' && thread.hat[1] === self.temp.toLowerCase();
+			}
+			
+			var stage = this.object.getStage();
+			var scripts = stage.threads.filter(filter);
+			for (var si = 0; si < stage.sprites.length; si++) {
+				scripts = scripts.concat(stage.sprites[si].threads.filter(filter));
+			}
+			if (scripts.filter(function (thread) {
+				return thread.done;
+			}).length === 0) {
+				this.evalCommandList(true);
 			}
 			return;
 		case 'doIfElse':
-			this.evalCommandList(this.evalArg(block[1]) ? block[2] : block[3], false);
+			this.evalCommandList(false, this.evalArg(block[1]) ? block[2] : block[3]);
 			return;
 		case 'doRepeat':
-			if (this.temp == -1) {
+			if (this.temp === null) {
 				this.temp = parseInt(this.evalArg(block[1])) || 0;
 			}
 			if (this.temp <= 0) {
-				this.temp = -1;
+				this.evalCommandList(false);
 				return;
 			}
 
 			this.temp--;
-			this.evalCommandList(block[2], true);
+			this.evalCommandList(true, block[2]);
 			return;
 		case 'doUntil':
-			if (this.evalArg(block[1]))
-				this.evalCommandList(block[2], true);
+			if (this.evalArg(block[1])) {
+				this.evalCommandList(true, block[2]);
+			}
 			return;
 		case 'doForever':
-			this.evalCommandList(block[1], true);
+			this.evalCommandList(true, block[1]);
 			return;
 		case 'doReturn':
 			this.stop();
 			return;
-		case 'wait:elapsed:from:':
-			if (this.timer == null) {
-				this.timer = new Stopwatch();
-				this.evalCommandList([], true);
-			} else if (this.timer.getElapsed() < parseFloat(block[1]) * 1000) {
-				this.evalCommandList([], true);
+		case 'doWaitUntil':
+			if (!this.evalArg(block[1])) {
+				this.evalCommandList(true);
 			}
+			return;
+		case 'wait:elapsed:from:':
+			if (!this.timer) {
+				this.timer = new jsc.Stopwatch();
+				this.evalCommandList(true);
+			} else if (this.timer.getElapsed() < parseFloat(this.evalArg(block[1])) * 1000) {
+				this.evalCommandList(true);
+			}
+			this.evalCommandList(false);
+			return;
+		case 'glideSecs:toX:y:elapsed:from:':
+			if (!this.temp) {
+				this.timer = new jsc.Stopwatch();
+				this.temp = [this.object.position, this.object.getStage().fromScratchCoords(new jsc.Point(parseFloat(this.evalArg(block[2])) || 0, parseFloat(this.evalArg(block[3])) || 0)), parseFloat(this.evalArg(block[1]))];
+			} else if (this.timer.getElapsed() < this.temp[2] * 1000) {
+				this.object.position = this.temp[0].subtract(this.temp[1]).multiplyBy(this.timer.getElapsed() / -1000 / this.temp[2]).add(this.temp[0]);
+			} else {
+				this.object.position = this.temp[1];
+				this.evalCommandList(false);
+				return;
+			}
+			this.evalCommandList(true);
 			return;
 		}
 
@@ -710,29 +934,23 @@
 		return arg;
 	};
 
-	jsc.Thread.prototype.evalCommandList = function (commands, repeat) {
-		if (!repeat) {
-			this.index++;
-		} else {
+	jsc.Thread.prototype.evalCommandList = function (repeat, commands) {
+		if (repeat) {
 			this.yield = true;
+		} else {
+			this.index++;
+			this.timer = null;
+			this.temp = null;
 		}
 		this.pushState();
-		this.temp = -1;
-		if (!commands) {
-			this.script = [];
-		} else {
-			this.script = commands;
-		}
+		this.script = commands || [];
 		this.index = -1;
+		this.timer = null;
+		this.temp = null;
 	};
 
 	jsc.Thread.prototype.pushState = function () {
-		var array = [];
-		array.push(this.script);
-		array.push(this.index);
-		array.push(this.timer);
-		array.push(this.temp);
-		this.stack.push(array);
+		this.stack.push([this.script, this.index, this.timer, this.temp]);
 	};
 
 	jsc.Thread.prototype.popState = function () {
@@ -772,11 +990,11 @@
 
 	// ScratchMedia ///////////////////////////////////////////
 	jsc.ScratchMedia = function () {
-		this.mediaName = null;
+		this.name;
 	}
 
 	jsc.ScratchMedia.prototype.initFields = function (fields, version) {
-		jsc.initFieldsNamed.call(this, ['mediaName'], fields);
+		jsc.initFieldsNamed.call(this, ['name'], fields);
 	};
 
 
@@ -802,10 +1020,14 @@
 
 	jsc.ImageMedia.prototype.initBeforeLoad = function  () {
 		if(this.jpegBytes) {
-			this.base64 = 'data:image/jpeg;base64,' + btoa(this.jpegBytes);
+			var str = '';
+			for (var i = 0; i < this.jpegBytes.length; i++) {
+				str += String.fromCharCode(this.jpegBytes[i]);
+			}
+			this.base64 = 'data:image/jpeg;base64,' + btoa(str);
 		}
 		if (this.base64) {
-			this.image = newImage(this.base64);
+			this.image = jsc.newImage(this.base64);
 		} else {
 			this.image = null;
 		}

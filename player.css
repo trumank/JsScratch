@@ -25,7 +25,6 @@
 .player .stop {
 	width: 17px;
 	height: 17px;
-	/*left: 432px;*/
 	top: 3px;
 	background: url('img/stop.gif');
 }
@@ -37,13 +36,26 @@
 .player .start {
 	width: 20px;
 	height: 17px;
-	/*left: 420px;*/
 	top: 3px;
 	background: url('img/flag.gif');
 }
 
 .player .start:hover {
 	background: url('img/flag_h.gif');
+}
+
+.player .turbo {
+	width: 17px;
+	height: 17px;
+	top: 3px;
+	background: url('img/turbo_off.gif');
+}
+
+.player .status {
+	float: right;
+	font: bold 10px Arial, Helvetica, sans-serif bold;
+	color: #FFFF00;
+	margin: 5px 3px;
 }
 
 .player canvas {

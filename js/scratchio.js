@@ -26,7 +26,7 @@
 		var version = this.readFileHeader();
 		if (version === -1) {
 			throw 'Not a Scratch project';
-		} else if (version !== 2) {
+		} else if (version < 1) {
 			throw 'Project is too old: ' + version;
 		}
 
