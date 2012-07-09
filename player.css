@@ -26,29 +26,42 @@
 	width: 17px;
 	height: 17px;
 	top: 3px;
-	background: url('img/stop.gif');
+	background: url('img/stopButton.png');
 }
 
 .player .stop:hover {
-	background: url('img/stop_h.gif');
+	background: url('img/stopButtonOver.png');
 }
 
 .player .start {
 	width: 20px;
 	height: 17px;
 	top: 3px;
-	background: url('img/flag.gif');
+	background: url('img/goButton.png');
 }
 
 .player .start:hover {
-	background: url('img/flag_h.gif');
+	background: url('img/goButtonOver.png');
 }
 
-.player .turbo {
+.player input[type="checkbox"] {
 	width: 17px;
 	height: 17px;
 	top: 3px;
-	background: url('img/turbo_off.gif');
+    background: url('img/turboOff.png');
+    -webkit-appearance: none;
+}
+
+.player input[type="checkbox"]:hover {
+    background: url('img/turboOffOver.png');
+}
+
+.player input[type="checkbox"]:checked {
+    background: url('img/turboOn.png');
+}
+
+.player input[type="checkbox"]:checked:hover {
+    background: url('img/turboOnOver.png');
 }
 
 .player .status {

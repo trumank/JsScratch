@@ -106,8 +106,9 @@
 		start.setAttribute('class', 'button start');
 		header.appendChild(start);
 		
-		var turbo = document.createElement('div');
-		turbo.setAttribute('class', 'button turbo');
+		var turbo = document.createElement('input');
+		turbo.setAttribute('type', 'checkbox');
+		turbo.setAttribute('class', 'button');
 		header.appendChild(turbo);
 		
 		container.appendChild(header);
@@ -126,13 +127,7 @@
 		}, false);
 		
 		turbo.onclick = function () {
-			if (player.isTurbo()) {
-				player.setTurbo(false);
-				turbo.style.background = 'url("img/turbo_off.gif")';
-			} else {
-				player.setTurbo(true);
-				turbo.style.background = 'url("img/turbo_on.gif")';
-			}
+			player.setTurbo(turbo.checked);
 		};
 		start.onclick = function () {
 			player.start();
@@ -673,7 +668,7 @@
 	jsc.Sprite.prototype.evalCommand = function (command, args) {
 		switch (command) {
 		case 'forward:':
-			var rad = Math.PI/180 * (90 - this.heading);
+			var rad = Math.PI/180 * (this.heading + 90);
 			var v = parseFloat(args[0]) || 0;
 			return this.setRelativePosition(this.getRelativePosition().add(new jsc.Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 		case 'heading:':
