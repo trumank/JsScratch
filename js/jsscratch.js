@@ -1,5 +1,4 @@
 "use strict";
-
 (function (jsc) {
 	// Player /////////////////////////////////////////////////
 	jsc.Player = function (url, canvas, autoplay) {
@@ -531,7 +530,6 @@
 
 	jsc.Stage.prototype.isRunning = function () {
 		var running = jsc.Stage.uber.isRunning.call(this);
-		
 		for (var i = 0; i < this.sprites.length; i++) {
 			running = running || this.sprites[i].isRunning();
 		}
