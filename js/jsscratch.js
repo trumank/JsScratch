@@ -469,8 +469,24 @@
 		
 		ctx.drawImage(this.penCanvas, 0, 0);
 		
+		for (var i = this.sprites.length - 1; i >= 0; i--) {
+			this.sprites[i].drawOn && this.sprites[i].drawOn(ctx);
+		}
+		
 		for (var i = this.children.length - 1; i >= 0; i--) {
 			this.children[i].drawOn && this.children[i].drawOn(ctx);
+		}
+	};
+
+	jsc.Stage.prototype.drawAllButOn = function (ctx, sprite) {
+		ctx.drawImage(this.costume.getImage(), 0, 0);
+		
+		ctx.drawImage(this.penCanvas, 0, 0);
+		
+		for (var i = this.sprites.length - 1; i >= 0; i--) {
+			if (this.sprites[i] !== sprite) {
+				this.sprites[i].drawOn && this.sprites[i].drawOn(ctx);
+			}
 		}
 	};
 
@@ -481,7 +497,11 @@
 		}
 		this.penCtx = this.penCanvas.getContext('2d');
 		
-		this.step();
+		this.buffer1 = jsc.newCanvas(this.width(), this.height());
+		this.bufferCtx1 = this.buffer1.getContext('2d');
+		
+		this.buffer2 = jsc.newCanvas(this.width(), this.height());
+		this.bufferCtx2 = this.buffer2.getContext('2d');
 		
 		var self = this;
 		this.canvas.addEventListener('keydown', function (e) {
@@ -494,8 +514,18 @@
 		this.canvas.addEventListener('mousemove', function (e) {
 			self.mousemove(e);
 		}, false);
+		
+		this.step();
 	};
-
+	
+	jsc.Stage.prototype.width = function () {
+		return this.bounds.width();
+	};
+	
+	jsc.Stage.prototype.height = function () {
+		return this.bounds.height();
+	};
+	
 	jsc.Stage.prototype.step = function () {
 		jsc.Stage.uber.step.call(this);
 		var stopwatch = new jsc.Stopwatch();
@@ -725,6 +755,36 @@
 		case 'comeToFront':
 			var children = this.getStage().children;
 			return children.unshift(children.splice(children.indexOf(this), 1)[0]);
+		
+		case 'touchingColor:':
+			var stage = this.getStage();
+			var w = stage.width();
+			var h = stage.height();
+			
+			var bufferCtx1 = stage.bufferCtx1;
+			bufferCtx1.clearRect(0, 0, w, h);
+			this.drawOn(bufferCtx1);
+			
+			var bufferCtx2 = stage.bufferCtx2;
+			bufferCtx2.clearRect(0, 0, w, h);
+			stage.drawAllButOn(bufferCtx2, this);
+			
+			var r = args[0].r;
+			var g = args[0].g;
+			var b = args[0].b;
+			
+			var t = bufferCtx1.getImageData(0, 0, w, h).data;
+			var s = bufferCtx2.getImageData(0, 0, w, h).data;
+			
+			var l = w * h * 4;
+			
+			for (var i = 0; i < l; i += 4) {
+				if (t[i + 3] > 0 && s[i] === r && s[i + 1] === g && s[i + 2] === b) {
+					(function(){})();
+					return true;
+				}
+			}
+			return false;
 		
 		case 'putPenDown':
 			return this.penDown = true;
