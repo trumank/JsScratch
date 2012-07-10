@@ -249,6 +249,21 @@
 		case 'mouseY':
 			return this.getStage().origin().y - this.getStage().mouse.y;
 		case 'keyPressed:':
+			var keys = {
+				"space": 32,
+				"up arrow": 38,
+				"down arrow": 40,
+				"right arrow": 39,
+				"left arrow": 37,
+				"up": 38,
+				"down": 40,
+				"right": 39,
+				"left": 37
+			};
+			var str = args[0].toString().toLowerCase();
+			if (keys[str]) {
+				return this.getStage().keys[keys[str]];
+			}
 			return this.getStage().keys[args[0].toString().toUpperCase().charCodeAt(0)];
 		case 'timerReset':
 			return this.getStage().timer.reset();
