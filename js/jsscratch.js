@@ -94,7 +94,7 @@
 		
 		var title = document.createElement('span');
 		title.setAttribute('class', 'title');
-		title.innerHTML = 'safsdaf';
+		title.innerHTML = 'JsScratch';
 		header.appendChild(title);
 		
 		var stop = document.createElement('div');
@@ -150,6 +150,7 @@
 
 	jsc.Scriptable.prototype.init = function () {
 		this.threads = [];
+		this.filters = {};
 	};
 
 	jsc.Scriptable.prototype.initFields = function (fields, version) {
@@ -239,10 +240,12 @@
 		case 'stopAll':
 			return this.getStage().stopAll();
 
-		case 'setGraphicEffect:to:':
-			return;
 		case 'changeGraphicEffect:by:':
-			return;
+			return this.filters[args[0].toString()] += parseFloat(args[1]) || 0;
+		case 'setGraphicEffect:to:':
+			return this.filters[args[0].toString()] = parseFloat(args[1]) || 0;
+		case 'filterReset':
+			return this.filters = {};
 		
 		case 'mouseX':
 			return this.getStage().mouse.x - this.getStage().origin().x;
@@ -364,7 +367,7 @@
 		case 'lineCountOfList:':
 			return this.getList(args[0].toString()).length;
 		default:
-			throw 'Unknown command: ' + command;
+			console.log('Unknown command: ' + command);
 		}
 	};
 
@@ -704,7 +707,15 @@
 		}
 		ctx.scale(this.rotationStyle === 'leftRight' && (this.heading - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x, this.scalePoint.y);
 		ctx.translate(-rc.x, -rc.y);
+		var t = this.filters['ghost'];
+		if (typeof t !== 'undefined') {
+			ctx.globalAlpha = 1 - t / 100;
+		}
+		
 		ctx.drawImage(this.costume.getImage(), 0, 0);
+		
+		ctx.globalAlpha = 1;
+		
 		ctx.restore();
 	}
 
@@ -722,6 +733,16 @@
 			return this.heading -= (parseFloat(args[0]) || 0);
 		case 'gotoX:y:':
 			return this.setRelativePosition(new jsc.Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
+		case 'gotoSpriteOrMouse:':
+			var stage = this.getStage();
+			if (args[0].toString() === 'mouse') {
+				return this.setRelativePosition(stage.toScratchCoords(stage.mouse));
+			}
+			var sprite = this.coerceSprite(args[0]);
+			if (!sprite) {
+				return;
+			}
+			return this.setRelativePosition(sprite.getRelativePosition());
 		case 'changeXposBy:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x + (parseFloat(args[0]) || 0), this.getRelativePosition().y));
 		case 'xpos:':
@@ -763,6 +784,14 @@
 			return this.costume = this.costumes[this.costumeIndex];
 		case 'say:':
 			return console.log(args[0]);
+		case 'changeSizeBy:':
+			var size = ((parseFloat(args[0]) || 0) / 100 + Math.max(this.scalePoint.x, this.scalePoint.y));
+			return this.scalePoint = new jsc.Point(size, size);
+		case 'setSizeTo:':
+			var size = (parseFloat(args[0]) || 0) / 100;
+			return this.scalePoint = new jsc.Point(size, size);
+		case 'scale':
+			return Math.round(100 * this.scalePoint.x);
 		case 'show':
 			return this.show();
 		case 'hide':
@@ -770,6 +799,12 @@
 		case 'comeToFront':
 			var children = this.getStage().children;
 			return children.unshift(children.splice(children.indexOf(this), 1)[0]);
+		case 'goBackByLayers:':
+			var children = this.getStage().children;
+			var i = children.indexOf(this);
+			var layer = Math.min(i + (parseInt(args[0]) || 0), children.length - 1);
+			children.splice(i, 1)
+			return children.splice(layer, 0, this);
 		
 		case 'touchingColor:':
 			var stage = this.getStage();
@@ -819,11 +854,11 @@
 			var x4 = xp2 * cos - yp1 * sin;
 			var y4 = xp2 * sin + yp1 * cos;         
 		 
-			var rx1 = x + Math.min(x1, x2, x3, x4) - 1;
-			var ry1 = y + Math.min(y1, y2, y3, y4) - 1;
+			var rx1 = x + Math.min(x1, x2, x3, x4) * this.scalePoint.x - 1;
+			var ry1 = y + Math.min(y1, y2, y3, y4) * this.scalePoint.y - 1;
 		 
-			var rx2 = x + Math.max(x1, x2, x3, x4) + 1;
-			var ry2 = y + Math.max(y1, y2, y3, y4) + 1;
+			var rx2 = x + Math.max(x1, x2, x3, x4) * this.scalePoint.x + 1;
+			var ry2 = y + Math.max(y1, y2, y3, y4) * this.scalePoint.y + 1;
 			
 			var r = args[0].r;
 			var g = args[0].g;
