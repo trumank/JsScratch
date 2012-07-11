@@ -698,7 +698,7 @@
 		var angle = this.heading.mod(360) * Math.PI / 180;
 		
 		ctx.save();
-		ctx.translate(this.position.x, this.position.y);
+		ctx.translate(Math.round(this.position.x), Math.round(this.position.y));
 		if (this.rotationStyle === 'normal') {
 			ctx.rotate(angle);
 		}
@@ -784,18 +784,56 @@
 			bufferCtx2.clearRect(0, 0, w, h);
 			stage.drawAllButOn(bufferCtx2, this);
 			
+			var rad = Math.PI/180 * (this.heading);
+			
+			var p = this.position;
+			var rc = this.costume.rotationCenter;
+			
+			var rcx = rc.x;
+			var rcy = rc.y;
+			
+			var x = p.x;
+			var y = p.y;
+			
+			w = this.costume.extent().x;
+			h = this.costume.extent().y;
+			
+			var cos = Math.cos(rad);
+			var sin = Math.sin(rad);
+			
+			var xp1 = -rcx;
+			var yp1 = -rcy;
+			
+			var xp2 = w - rcx;
+			var yp2 = h - rcy;
+			
+			var x1 = xp1 * cos - yp1 * sin;
+			var y1 = xp1 * sin + yp1 * cos;
+		 
+			var x2 = xp1 * cos - yp2 * sin;
+			var y2 = xp1 * sin + yp2 * cos;
+		 
+			var x3 = xp2 * cos - yp2 * sin;
+			var y3 = xp2 * sin + yp2 * cos;
+		 
+			var x4 = xp2 * cos - yp1 * sin;
+			var y4 = xp2 * sin + yp1 * cos;         
+		 
+			var rx1 = x + Math.min(x1, x2, x3, x4) - 1;
+			var ry1 = y + Math.min(y1, y2, y3, y4) - 1;
+		 
+			var rx2 = x + Math.max(x1, x2, x3, x4) + 1;
+			var ry2 = y + Math.max(y1, y2, y3, y4) + 1;
+			
 			var r = args[0].r;
 			var g = args[0].g;
 			var b = args[0].b;
 			
-			var t = bufferCtx1.getImageData(0, 0, w, h).data;
-			var s = bufferCtx2.getImageData(0, 0, w, h).data;
+			var t = bufferCtx1.getImageData(rx1, ry1, rx2 - rx1, ry2 - ry1).data;
+			var s = bufferCtx2.getImageData(rx1, ry1, rx2 - rx1, ry2 - ry1).data;
 			
-			var l = w * h * 4;
-			
-			for (var i = 0; i < l; i += 4) {
+			for (var i = 0; i < s.length; i += 4) {
 				if (t[i + 3] > 0 && s[i] === r && s[i + 1] === g && s[i + 2] === b) {
-					(function(){})();
 					return true;
 				}
 			}

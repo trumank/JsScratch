@@ -39,9 +39,7 @@ var jsc = new (function JsScratch() {});
 		var canvas = jsc.newCanvas(this.width, this.height);
 		var ctx = canvas.getContext('2d');
 
-		if (!this.bits.isBitmap) {
-			this.data = this.decodePixels();
-		}
+		this.data = this.bits.isBitmap ? this.bits : this.decodePixels();
 
 		var data = ctx.createImageData(this.width, this.height);
 		this.setImageData(data);
