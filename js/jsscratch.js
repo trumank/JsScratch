@@ -747,7 +747,7 @@
 		}
 		ctx.scale(this.rotationStyle === 'leftRight' && (this.heading - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x, this.scalePoint.y);
 		ctx.translate(-rc.x, -rc.y);
-		var t = this.filters['ghost'];
+		var t = this.filters.ghost;
 		if (typeof t !== 'undefined') {
 			ctx.globalAlpha = 1 - t / 100;
 		}
@@ -861,13 +861,19 @@
 			return children.splice(layer, 0, this);
 		
 		case 'touching:':
+			if (this.hidden) {
+				return false;
+			}
 			var stage = this.getStage();
 			var w = stage.width();
 			var h = stage.height();
 			
 			var bufferCtx1 = stage.bufferCtx1;
 			bufferCtx1.clearRect(0, 0, w, h);
+			var g = this.filters.ghost || 0;
+			this.filters.ghost = 0;
 			this.drawOn(bufferCtx1);
+			this.filters.ghost = g;
 			
 			if (args[0] === 'mouse') {
 				var mx = stage.mouse.x;
@@ -877,13 +883,16 @@
 				return d[3] > 0;
 			} else {
 				var other = this.coerceSprite(args[0]);
-				if (!other) {
+				if (!other || other.hidden) {
 					return;
 				}
 				
 				var bufferCtx2 = stage.bufferCtx2;
 				bufferCtx2.clearRect(0, 0, w, h);
-				other.drawOn(bufferCtx2, this);
+				g = other.filters.ghost || 0;
+				other.filters.ghost = 0;
+				other.drawOn(bufferCtx2);
+				other.filters.ghost = g;
 				
 				var b1 = this.getBoundingBox();
 				var b2 = other.getBoundingBox();
