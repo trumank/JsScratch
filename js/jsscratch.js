@@ -369,6 +369,7 @@
 		default:
 			console.log('Unknown command: ' + command);
 		}
+		return 0;
 	};
 
 	jsc.Scriptable.prototype.isStage = function () {
@@ -588,6 +589,14 @@
 		return true;
 	};
 
+	jsc.Stage.prototype.getAllThreads = function () {
+		var threads = this.threads;
+		for (var i = 0; i < this.sprites.length; i++) {
+			threads = threads.concat(this.sprites[i].threads);
+		}
+		return threads;
+	};
+	
 	jsc.Stage.prototype.evalCommand = function (command, args) {
 		switch (command) {
 		case 'showBackground:':
@@ -650,6 +659,14 @@
 	jsc.Stage.prototype.keydown = function (e) {
 		e.preventDefault();
 		this.keys[e.keyCode] = true;
+		var threads = this.getAllThreads();
+		var thread;
+		for (var i = 0; i < threads.length; i++) {
+			thread = threads[i];
+			if (thread.done && thread.hat[0] === 'KeyEventHatMorph' && thread.hat[1] === e.keyCode) {
+				thread.start();
+			}
+		}
 	};
 	
 	jsc.Stage.prototype.keyup = function (e) {
@@ -926,6 +943,20 @@
 	jsc.Thread.prototype.init = function (object, script) {
 		this.object = object;
 		this.hat = script[0];
+		if (this.hat[0] === 'KeyEventHatMorph') {
+			var keys = {
+				"space": 32,
+				"up arrow": 38,
+				"down arrow": 40,
+				"right arrow": 39,
+				"left arrow": 37,
+				"up": 38,
+				"down": 40,
+				"right": 39,
+				"left": 37
+			};
+			this.hat[1] = keys[this.hat[1]] || this.hat[1].toUpperCase().charCodeAt(0);
+		}
 		this.wholeScript = this.script = script.slice(1, script.length);
 		this.done = true;
 	};
