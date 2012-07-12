@@ -121,10 +121,6 @@
 		
 		var player = new jsc.Player(url, canvas, autoplay);
 		
-		canvas.addEventListener('mousedrag', function (e) {
-			e.preventDefault();
-		}, false);
-		
 		turbo.onclick = function () {
 			player.setTurbo(turbo.checked);
 		};
@@ -251,6 +247,8 @@
 			return this.getStage().mouse.x - this.getStage().origin().x;
 		case 'mouseY':
 			return this.getStage().origin().y - this.getStage().mouse.y;
+		case 'mousePressed':
+			return this.getStage().mouseDown;
 		case 'keyPressed:':
 			var keys = {
 				"space": 32,
@@ -273,7 +271,11 @@
 		case 'timer':
 			return this.getStage().timer.getElapsed() / 1000;
 		case 'getAttribute:of:':
-			return this.coerceSprite(args[1]).getAttribute(args[0]);
+			var s = this.coerceSprite(args[1]);
+			if (s) {
+				return s.getAttribute(args[0]);
+			}
+			return 0;
 
 		case 'playSound:':
 			return;
@@ -376,8 +378,15 @@
 		return false;
 	};
 
-	jsc.Scriptable.prototype.getAttribute = function () {
-		return false;
+	jsc.Scriptable.prototype.getAttribute = function (attribute) {
+		var stage = this.getStage();
+		switch (attribute.toString()) {
+		case 'x position':
+			return stage.toScratchCoords(this.position).x;
+		case 'y position':
+			return stage.toScratchCoords(this.position).y;
+		}
+		return 0;
 	};
 
 	jsc.Scriptable.prototype.getVariable = function (name) {
@@ -457,6 +466,7 @@
 		this.timer = new jsc.Stopwatch();
 		this.keys = [];
 		this.mouse = new jsc.Point(0, 0);
+		this.mouseDown = false;
 		for (var i = 0; i < 255; i++) {
 			this.keys.push(false);
 		}
@@ -533,6 +543,13 @@
 		this.canvas.addEventListener('mousemove', function (e) {
 			self.mousemove(e);
 		}, false);
+		this.canvas.addEventListener('mouseup', function (e) {
+			self.mouseup(e);
+		}, false);
+		this.canvas.addEventListener('mousedown', function (e) {
+			self.mousedown(e);
+		}, false);
+		
 		
 		this.step();
 	};
@@ -678,6 +695,12 @@
 		e.preventDefault();
 		this.mouse = new jsc.Point(e.offsetX, e.offsetY);
 	};
+	jsc.Stage.prototype.mouseup = function (e) {
+		this.mouseDown = false;
+	};
+	jsc.Stage.prototype.mousedown = function (e) {
+		this.mouseDown = true;
+	};
 
 
 	// Sprite ////////////////////////////////////////////
@@ -744,6 +767,19 @@
 			return this.setRelativePosition(this.getRelativePosition().add(new jsc.Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 		case 'heading:':
 			return this.heading = (parseFloat(args[0]) || 0) - 90;
+		case 'pointTowards:':
+			var coords;
+			if (args[0].toString() === 'mouse') {
+				coords = this.getStage().mouse;
+			} else {
+				var s = this.coerceSprite(args[0]);
+				if (!s) {
+					return;
+				}
+				coords = s.position;
+			}
+			var p = this.position.subtract(coords);
+			return this.heading = Math.atan2(p.x, -p.y) * 180/Math.PI + 90;
 		case 'turnRight:':
 			return this.heading += (parseFloat(args[0]) || 0);
 		case 'turnLeft:':
@@ -767,6 +803,7 @@
 		case 'changeYposBy:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, this.getRelativePosition().y + (parseFloat(args[0]) || 0)));
 		case 'bounceOffEdge':
+			this.position = this.position.add(this.getBoundingBox().amountToTranslateWithin(this.getStage().bounds));
 			return;
 		case 'ypos:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, parseFloat(args[0]) || 0));
@@ -785,7 +822,7 @@
 				costume = this.costumes[index];
 			} else {
 				for (var i = 0; i < this.costumes.length; i++) {
-					if (this.costumes[i].name.toLowerCase() === args[0].toLowerCase()) {
+					if (this.costumes[i].name.toLowerCase() === args[0].toString().toLowerCase()) {
 						costume = this.costumes[i];
 						index = i;
 					}
@@ -823,6 +860,49 @@
 			children.splice(i, 1)
 			return children.splice(layer, 0, this);
 		
+		case 'touching:':
+			var stage = this.getStage();
+			var w = stage.width();
+			var h = stage.height();
+			
+			var bufferCtx1 = stage.bufferCtx1;
+			bufferCtx1.clearRect(0, 0, w, h);
+			this.drawOn(bufferCtx1);
+			
+			if (args[0] === 'mouse') {
+				var mx = stage.mouse.x;
+				var my = stage.mouse.y;
+				
+				var d = bufferCtx1.getImageData(mx, my, 1, 1).data;
+				return d[3] > 0;
+			} else {
+				var other = this.coerceSprite(args[0]);
+				if (!other) {
+					return;
+				}
+				
+				var bufferCtx2 = stage.bufferCtx2;
+				bufferCtx2.clearRect(0, 0, w, h);
+				other.drawOn(bufferCtx2, this);
+				
+				var b1 = this.getBoundingBox();
+				var b2 = other.getBoundingBox();
+				
+				if (!b1.intersects(b2)) {
+					return;
+				}
+				
+				var b = b1.intersect(b2);
+				
+				var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+				var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+				for (var i = 0; i < s.length; i += 4) {
+					if (t[i + 3] > 0 && s[i + 3] > 0) {
+						return true;
+					}
+				}
+			}
+			return false;
 		case 'touchingColor:':
 			var stage = this.getStage();
 			var w = stage.width();
@@ -836,53 +916,14 @@
 			bufferCtx2.clearRect(0, 0, w, h);
 			stage.drawAllButOn(bufferCtx2, this);
 			
-			var rad = Math.PI/180 * (this.heading);
+			var b = this.getBoundingBox();
 			
-			var p = this.position;
-			var rc = this.costume.rotationCenter;
-			
-			var rcx = rc.x;
-			var rcy = rc.y;
-			
-			var x = p.x;
-			var y = p.y;
-			
-			w = this.costume.extent().x;
-			h = this.costume.extent().y;
-			
-			var cos = Math.cos(rad);
-			var sin = Math.sin(rad);
-			
-			var xp1 = -rcx;
-			var yp1 = -rcy;
-			
-			var xp2 = w - rcx;
-			var yp2 = h - rcy;
-			
-			var x1 = xp1 * cos - yp1 * sin;
-			var y1 = xp1 * sin + yp1 * cos;
-		 
-			var x2 = xp1 * cos - yp2 * sin;
-			var y2 = xp1 * sin + yp2 * cos;
-		 
-			var x3 = xp2 * cos - yp2 * sin;
-			var y3 = xp2 * sin + yp2 * cos;
-		 
-			var x4 = xp2 * cos - yp1 * sin;
-			var y4 = xp2 * sin + yp1 * cos;         
-		 
-			var rx1 = x + Math.min(x1, x2, x3, x4) * this.scalePoint.x - 1;
-			var ry1 = y + Math.min(y1, y2, y3, y4) * this.scalePoint.y - 1;
-		 
-			var rx2 = x + Math.max(x1, x2, x3, x4) * this.scalePoint.x + 1;
-			var ry2 = y + Math.max(y1, y2, y3, y4) * this.scalePoint.y + 1;
+			var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+			var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
 			
 			var r = args[0].r;
 			var g = args[0].g;
 			var b = args[0].b;
-			
-			var t = bufferCtx1.getImageData(rx1, ry1, rx2 - rx1, ry2 - ry1).data;
-			var s = bufferCtx2.getImageData(rx1, ry1, rx2 - rx1, ry2 - ry1).data;
 			
 			for (var i = 0; i < s.length; i += 4) {
 				if (t[i + 3] > 0 && s[i] === r && s[i + 1] === g && s[i + 2] === b) {
@@ -890,6 +931,18 @@
 				}
 			}
 			return false;
+		case 'distanceTo:':
+			var coords;
+			if (args[0].toString() === 'mouse') {
+				coords = this.getStage().mouse;
+			} else {
+				var s = this.coerceSprite(args[0]);
+				if (!s) {
+					return 10000;
+				}
+				coords = s.position;
+			}
+			return this.position.distanceTo(coords);
 		
 		case 'putPenDown':
 			return this.penDown = true;
@@ -902,6 +955,42 @@
 		default:
 			return jsc.Sprite.uber.evalCommand.call(this, command, args);
 		}
+	};
+	
+	jsc.Sprite.prototype.getBoundingBox = function () {
+		var rad = Math.PI/180 * (this.heading);
+		
+		var p = this.position;
+		var rc = this.costume.rotationCenter;
+		
+		var cos = Math.cos(rad);
+		var sin = Math.sin(rad);
+		
+		var xp1 = -rc.x;
+		var yp1 = -rc.y;
+		
+		var xp2 = this.costume.extent().x - rc.x;
+		var yp2 = this.costume.extent().y - rc.y;
+		
+		var x1 = xp1 * cos - yp1 * sin;
+		var y1 = xp1 * sin + yp1 * cos;
+	 
+		var x2 = xp1 * cos - yp2 * sin;
+		var y2 = xp1 * sin + yp2 * cos;
+	 
+		var x3 = xp2 * cos - yp2 * sin;
+		var y3 = xp2 * sin + yp2 * cos;
+	 
+		var x4 = xp2 * cos - yp1 * sin;
+		var y4 = xp2 * sin + yp1 * cos;         
+	 
+		var rx1 = p.x + Math.min(x1, x2, x3, x4) * this.scalePoint.x - 1;
+		var ry1 = p.y + Math.min(y1, y2, y3, y4) * this.scalePoint.y - 1;
+	 
+		var rx2 = p.x + Math.max(x1, x2, x3, x4) * this.scalePoint.x + 1;
+		var ry2 = p.y + Math.max(y1, y2, y3, y4) * this.scalePoint.y + 1;
+		
+		return new jsc.Rectangle(rx1, ry1, rx2, ry2);
 	};
 
 	jsc.Sprite.prototype.getRelativePosition = function () {
@@ -1052,12 +1141,15 @@
 			this.evalCommandList(true, block[2]);
 			return;
 		case 'doUntil':
-			if (this.evalArg(block[1])) {
+			if (!this.evalArg(block[1])) {
 				this.evalCommandList(true, block[2]);
 			}
 			return;
 		case 'doForever':
 			this.evalCommandList(true, block[1]);
+			return;
+		case 'doForeverIf':
+			this.evalCommandList(true, this.evalArg(block[1]) ? block[2] : null);
 			return;
 		case 'doReturn':
 			this.stop();
