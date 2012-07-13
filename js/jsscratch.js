@@ -147,6 +147,7 @@
 	jsc.Scriptable.prototype.init = function () {
 		this.threads = [];
 		this.filters = {};
+		this.volume = 100;
 	};
 
 	jsc.Scriptable.prototype.initFields = function (fields, version) {
@@ -273,7 +274,11 @@
 		case 'getAttribute:of:':
 			var s = this.coerceSprite(args[1]);
 			if (s) {
-				return s.getAttribute(args[0]);
+				var a = args[0].toString();
+				if (typeof s.variables.obj[a] !== 'undefined') {
+					return s.variables.obj[a];
+				}
+				return s.getAttribute(a);
 			}
 			return 0;
 
@@ -379,12 +384,9 @@
 	};
 
 	jsc.Scriptable.prototype.getAttribute = function (attribute) {
-		var stage = this.getStage();
-		switch (attribute.toString()) {
-		case 'x position':
-			return stage.toScratchCoords(this.position).x;
-		case 'y position':
-			return stage.toScratchCoords(this.position).y;
+		switch (attribute) {
+		case 'volume':
+			return this.volume;
 		}
 		return 0;
 	};
@@ -673,6 +675,14 @@
 		})[0];
 	};
 	
+	jsc.Stage.prototype.getAttribute = function (attribute) {
+		switch (attribute) {
+		case 'background #':
+			return this.costumeIndex + 1;
+		}
+		return jsc.Stage.uber.getAttribute.call(attribute);
+	};
+	
 	jsc.Stage.prototype.keydown = function (e) {
 		e.preventDefault();
 		this.keys[e.keyCode] = true;
@@ -749,7 +759,7 @@
 		ctx.translate(-rc.x, -rc.y);
 		var t = this.filters.ghost;
 		if (typeof t !== 'undefined') {
-			ctx.globalAlpha = 1 - t / 100;
+			ctx.globalAlpha = Math.max(Math.min(1 - t / 100, 1), 0);
 		}
 		
 		ctx.drawImage(this.costume.getImage(), 0, 0);
@@ -802,11 +812,11 @@
 			return this.setRelativePosition(new jsc.Point(parseFloat(args[0]) || 0, this.getRelativePosition().y));
 		case 'changeYposBy:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, this.getRelativePosition().y + (parseFloat(args[0]) || 0)));
+		case 'ypos:':
+			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, parseFloat(args[0]) || 0));
 		case 'bounceOffEdge':
 			this.position = this.position.add(this.getBoundingBox().amountToTranslateWithin(this.getStage().bounds));
 			return;
-		case 'ypos:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, parseFloat(args[0]) || 0));
 		case 'xpos':
 			return this.getRelativePosition().x;
 		case 'ypos':
@@ -861,85 +871,9 @@
 			return children.splice(layer, 0, this);
 		
 		case 'touching:':
-			if (this.hidden) {
-				return false;
-			}
-			var stage = this.getStage();
-			var w = stage.width();
-			var h = stage.height();
-			
-			var bufferCtx1 = stage.bufferCtx1;
-			bufferCtx1.clearRect(0, 0, w, h);
-			var g = this.filters.ghost || 0;
-			this.filters.ghost = 0;
-			this.drawOn(bufferCtx1);
-			this.filters.ghost = g;
-			
-			if (args[0] === 'mouse') {
-				var mx = stage.mouse.x;
-				var my = stage.mouse.y;
-				
-				var d = bufferCtx1.getImageData(mx, my, 1, 1).data;
-				return d[3] > 0;
-			} else {
-				var other = this.coerceSprite(args[0]);
-				if (!other || other.hidden) {
-					return;
-				}
-				
-				var bufferCtx2 = stage.bufferCtx2;
-				bufferCtx2.clearRect(0, 0, w, h);
-				g = other.filters.ghost || 0;
-				other.filters.ghost = 0;
-				other.drawOn(bufferCtx2);
-				other.filters.ghost = g;
-				
-				var b1 = this.getBoundingBox();
-				var b2 = other.getBoundingBox();
-				
-				if (!b1.intersects(b2)) {
-					return;
-				}
-				
-				var b = b1.intersect(b2);
-				
-				var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
-				var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
-				for (var i = 0; i < s.length; i += 4) {
-					if (t[i + 3] > 0 && s[i + 3] > 0) {
-						return true;
-					}
-				}
-			}
-			return false;
+			return this.isTouching(args[0]);
 		case 'touchingColor:':
-			var stage = this.getStage();
-			var w = stage.width();
-			var h = stage.height();
-			
-			var bufferCtx1 = stage.bufferCtx1;
-			bufferCtx1.clearRect(0, 0, w, h);
-			this.drawOn(bufferCtx1);
-			
-			var bufferCtx2 = stage.bufferCtx2;
-			bufferCtx2.clearRect(0, 0, w, h);
-			stage.drawAllButOn(bufferCtx2, this);
-			
-			var b = this.getBoundingBox();
-			
-			var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
-			var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
-			
-			var r = args[0].r;
-			var g = args[0].g;
-			var b = args[0].b;
-			
-			for (var i = 0; i < s.length; i += 4) {
-				if (t[i + 3] > 0 && s[i] === r && s[i + 1] === g && s[i + 2] === b) {
-					return true;
-				}
-			}
-			return false;
+			return this.isTouchingColor(args[0]);
 		case 'distanceTo:':
 			var coords;
 			if (args[0].toString() === 'mouse') {
@@ -960,7 +894,10 @@
 		case 'penColor:':
 			return this.penColor = args[0];
 		case 'stampCostume':
-			return this.drawOn(this.getStage().penCtx);
+			var h = this.hidden;
+			this.hidden = false;
+			this.drawOn(this.getStage().penCtx);
+			return this.hidden = h;
 		default:
 			return jsc.Sprite.uber.evalCommand.call(this, command, args);
 		}
@@ -1001,7 +938,103 @@
 		
 		return new jsc.Rectangle(rx1, ry1, rx2, ry2);
 	};
-
+	
+	jsc.Sprite.prototype.isTouching = function (obj) {
+		var stage = this.getStage();
+		if (obj === 'edge') {
+			return !stage.bounds.containsRectangle(this.getBoundingBox());
+		}
+		if (this.hidden) {
+			return false;
+		}
+		
+		var w = stage.width();
+		var h = stage.height();
+		
+		if (obj === 'mouse') {
+			var bufferCtx1 = stage.bufferCtx1;
+			bufferCtx1.clearRect(0, 0, w, h);
+			var g = this.filters.ghost || 0;
+			this.filters.ghost = 0;
+			this.drawOn(bufferCtx1);
+			this.filters.ghost = g;
+			
+			var mx = stage.mouse.x;
+			var my = stage.mouse.y;
+			
+			var d = bufferCtx1.getImageData(mx, my, 1, 1).data;
+			return d[3] > 0;
+		} else {
+			var other = this.coerceSprite(obj);
+			if (!other || other.hidden) {
+				return;
+			}
+			
+			var b1 = this.getBoundingBox();
+			var b2 = other.getBoundingBox();
+			
+			if (!b1.intersects(b2)) {
+				return;
+			}
+			
+			var bufferCtx1 = stage.bufferCtx1;
+			bufferCtx1.clearRect(0, 0, w, h);
+			var g = this.filters.ghost || 0;
+			this.filters.ghost = 0;
+			this.drawOn(bufferCtx1);
+			this.filters.ghost = g;
+			
+			var bufferCtx2 = stage.bufferCtx2;
+			bufferCtx2.clearRect(0, 0, w, h);
+			g = other.filters.ghost || 0;
+			other.filters.ghost = 0;
+			other.drawOn(bufferCtx2);
+			other.filters.ghost = g;
+			
+			var b = b1.intersect(b2);
+			
+			var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+			var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+			for (var i = 0; i < s.length; i += 4) {
+				if (t[i + 3] > 0 && s[i + 3] > 0) {
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+	
+	jsc.Sprite.prototype.isTouchingColor = function (color) {
+		var stage = this.getStage();
+		var w = stage.width();
+		var h = stage.height();
+		
+		var bufferCtx1 = stage.bufferCtx1;
+		bufferCtx1.clearRect(0, 0, w, h);
+		this.drawOn(bufferCtx1);
+		
+		var bufferCtx2 = stage.bufferCtx2;
+		bufferCtx2.clearRect(0, 0, w, h);
+		stage.drawAllButOn(bufferCtx2, this);
+		
+		var b = this.getBoundingBox();
+		
+		var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+		var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
+		
+		var r = color.r;
+		var g = color.g;
+		var b = color.b;
+		
+		for (var i = 0; i < s.length; i += 4) {
+			if (t[i + 3] > 0 && s[i] === r && s[i + 1] === g && s[i + 2] === b) {
+				return true;
+			}
+		}
+		return false;
+	};
+	
+	
 	jsc.Sprite.prototype.getRelativePosition = function () {
 		return this.position.subtract(this.getStage().origin()).multiplyBy(new jsc.Point(1, -1));
 	};
@@ -1031,8 +1064,29 @@
 	jsc.Sprite.prototype.hide = function () {
 		this.hidden = true;
 	};
-
-
+	
+	jsc.Sprite.prototype.getAttribute = function (attribute) {
+		var stage = this.getStage();
+		switch (attribute) {
+		case 'x position':
+			return stage.toScratchCoords(this.position).x;
+		case 'y position':
+			return stage.toScratchCoords(this.position).y;
+		case 'direction':
+			return this.scratchHeading();
+		case 'costume #':
+			return this.costumeIndex + 1;
+		case 'size':
+			return Math.round(this.scalePoint.x * 100);
+		}
+		return jsc.Sprite.uber.getAttribute.call(attribute);
+	};
+	
+	jsc.Sprite.prototype.scratchHeading = function () {
+		return (this.heading + 90 + 179).mod(360) - 179;
+	};
+	
+	
 	// jsc.Thread /////////////////////////////////////////////////
 	jsc.Thread = function (object, script) {
 		this.init(object, script);
@@ -1130,7 +1184,7 @@
 			}
 			if (scripts.filter(function (thread) {
 				return thread.done;
-			}).length === 0) {
+			}).length !== 0) {
 				this.evalCommandList(true);
 			}
 			return;
