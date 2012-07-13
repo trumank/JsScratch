@@ -1,4 +1,5 @@
 "use strict";
+
 (function (jsc) {
 	// Player /////////////////////////////////////////////////
 	jsc.Player = function (url, canvas, autoplay) {
@@ -51,6 +52,28 @@
 	};
 
 
+	jsc.castNumber = function (object) {
+		if (typeof object === 'number') {
+			return object;
+		}
+		var string = object.toString();
+		if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
+			return parseFloat(string.match(/^\-?[0-9]+((\.|\,)[0-9]+)?/g)[0].replace(',', '.'));
+		}
+		return 0;
+	};
+	
+	jsc.castNumberOrNull = function (object) {
+		if (typeof object === 'number') {
+			return object;
+		}
+		var string = object.toString();
+		if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
+			return parseFloat(string.match(/^\-?[0-9]+((\.|\,)[0-9]+)?/g)[0].replace(',', '.'));
+		}
+		return null;
+	};
+	
 	jsc.newCanvas = function (width, height) {
 		var canvas = document.createElement('canvas');
 		canvas.width = width;
@@ -238,9 +261,9 @@
 			return this.getStage().stopAll();
 
 		case 'changeGraphicEffect:by:':
-			return this.filters[args[0].toString()] += parseFloat(args[1]) || 0;
+			return this.filters[args[0].toString()] += jsc.castNumber(args[1]);
 		case 'setGraphicEffect:to:':
-			return this.filters[args[0].toString()] = parseFloat(args[1]) || 0;
+			return this.filters[args[0].toString()] = jsc.castNumber(args[1]);
 		case 'filterReset':
 			return this.filters = {};
 		
@@ -286,23 +309,23 @@
 			return;
 		
 		case '+':
-			return (parseFloat(args[0]) || 0) + (parseFloat(args[1]) || 0);
+			return jsc.castNumber(args[0]) + jsc.castNumber(args[1]);
 		case '-':
-			return (parseFloat(args[0]) || 0) - (parseFloat(args[1]) || 0);
+			return jsc.castNumber(args[0]) - jsc.castNumber(args[1]);
 		case '*':
-			return (parseFloat(args[0]) || 0) * (parseFloat(args[1]) || 0);
+			return jsc.castNumber(args[0]) * jsc.castNumber(args[1]);
 		case '/':
-			return (parseFloat(args[0]) || 0) / (parseFloat(args[1]) || 0);
+			return jsc.castNumber(args[0]) / jsc.castNumber(args[1]);
 		case 'randomFrom:to:':
-			var n1 = parseFloat(args[0]) || 0;
-			var n2 = parseFloat(args[1]) || 0;
+			var n1 = jsc.castNumber(args[0]);
+			var n2 = jsc.castNumber(args[1]);
 			return Math.round(Math.random() * (n2 - n1) + n1);
 		case '<':
 			var a = parseFloat(args[0]);
 			var b = parseFloat(args[1]);
 			return (isNaN(a) ? args[0] : a) < (isNaN(b) ? args[1] : b);
 		case '=':
-			return args[0].toString().toLowerCase() == args[1].toString().toLowerCase();
+			return args[0].toString().toLowerCase() === args[1].toString().toLowerCase();
 		case '>':
 			var a = parseFloat(args[0]);
 			var b = parseFloat(args[1]);
@@ -316,15 +339,15 @@
 		case 'concatenate:with:':
 			return args[0].toString() + args[1].toString();
 		case 'letter:of:':
-			return args[1].toString()[(parseFloat(args[0]) || 0) - 1] || '';
+			return args[1].toString()[(jsc.castNumber(args[0])) - 1] || '';
 		case 'stringLength:':
 			return args[0].toString().length;
 		case '\\\\':
-			return (parseFloat(args[0]) || 0).mod(parseFloat(args[1]) || 0);
+			return jsc.castNumber(args[0]).mod(jsc.castNumber(args[1]));
 		case 'rounded':
-			return Math.round(parseFloat(args[0]) || 0);
+			return Math.round(jsc.castNumber(args[0]));
 		case 'computeFunction:of:':
-			var n = parseFloat(args[1]) || 0;
+			var n = jsc.castNumber(args[1]);
 			switch (args[0].toString().toLowerCase()) {
 			case 'abs': return Math.abs(n);
 			case 'sqrt': return Math.sqrt(n);
@@ -402,7 +425,7 @@
 		}
 		o = o.at(name);
 		if (relative) {
-			o[0] = parseFloat(o || 0) + parseFloat(value) || 0;
+			o[0] = jsc.castNumber(o) + jsc.castNumber(value);
 		} else {
 			o[0] = value;
 		}
@@ -773,10 +796,10 @@
 		switch (command) {
 		case 'forward:':
 			var rad = Math.PI/180 * (this.heading + 90);
-			var v = parseFloat(args[0]) || 0;
+			var v = jsc.castNumber(args[0]);
 			return this.setRelativePosition(this.getRelativePosition().add(new jsc.Point(Math.sin(rad) * v, Math.cos(rad) * v)));
 		case 'heading:':
-			return this.heading = (parseFloat(args[0]) || 0) - 90;
+			return this.heading = (jsc.castNumber(args[0])) - 90;
 		case 'pointTowards:':
 			var coords;
 			if (args[0].toString() === 'mouse') {
@@ -791,11 +814,11 @@
 			var p = this.position.subtract(coords);
 			return this.heading = Math.atan2(p.x, -p.y) * 180/Math.PI + 90;
 		case 'turnRight:':
-			return this.heading += (parseFloat(args[0]) || 0);
+			return this.heading += (jsc.castNumber(args[0]));
 		case 'turnLeft:':
-			return this.heading -= (parseFloat(args[0]) || 0);
+			return this.heading -= (jsc.castNumber(args[0]));
 		case 'gotoX:y:':
-			return this.setRelativePosition(new jsc.Point(parseFloat(args[0]) || 0, parseFloat(args[1]) || 0));
+			return this.setRelativePosition(new jsc.Point(jsc.castNumber(args[0]), jsc.castNumber(args[1])));
 		case 'gotoSpriteOrMouse:':
 			var stage = this.getStage();
 			if (args[0].toString() === 'mouse') {
@@ -807,13 +830,13 @@
 			}
 			return this.setRelativePosition(sprite.getRelativePosition());
 		case 'changeXposBy:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x + (parseFloat(args[0]) || 0), this.getRelativePosition().y));
+			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x + (jsc.castNumber(args[0])), this.getRelativePosition().y));
 		case 'xpos:':
-			return this.setRelativePosition(new jsc.Point(parseFloat(args[0]) || 0, this.getRelativePosition().y));
+			return this.setRelativePosition(new jsc.Point(jsc.castNumber(args[0]), this.getRelativePosition().y));
 		case 'changeYposBy:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, this.getRelativePosition().y + (parseFloat(args[0]) || 0)));
+			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, this.getRelativePosition().y + (jsc.castNumber(args[0]))));
 		case 'ypos:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, parseFloat(args[0]) || 0));
+			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, jsc.castNumber(args[0])));
 		case 'bounceOffEdge':
 			this.position = this.position.add(this.getBoundingBox().amountToTranslateWithin(this.getStage().bounds));
 			return;
@@ -827,8 +850,10 @@
 		case 'lookLike:':
 			var costume;
 			
-			var index = (parseInt(args[0]) || 0) - 1;
-			if (index >= 0 && index < this.costumes.length) {
+			var index;
+			var cast = jsc.castNumberOrNull(args[0]);
+			if (cast !== null) {
+				index = (Math.round(cast) - 1).mod(this.costumes.length);
 				costume = this.costumes[index];
 			} else {
 				for (var i = 0; i < this.costumes.length; i++) {
@@ -849,10 +874,10 @@
 		case 'say:':
 			return console.log(args[0]);
 		case 'changeSizeBy:':
-			var size = ((parseFloat(args[0]) || 0) / 100 + Math.max(this.scalePoint.x, this.scalePoint.y));
+			var size = ((jsc.castNumber(args[0])) / 100 + Math.max(this.scalePoint.x, this.scalePoint.y));
 			return this.scalePoint = new jsc.Point(size, size);
 		case 'setSizeTo:':
-			var size = (parseFloat(args[0]) || 0) / 100;
+			var size = (jsc.castNumber(args[0])) / 100;
 			return this.scalePoint = new jsc.Point(size, size);
 		case 'scale':
 			return Math.round(100 * this.scalePoint.x);
@@ -1173,20 +1198,11 @@
 				return;
 			}
 			
-			var filter = function (thread) {
-				return thread.hat[0] === 'EventHatMorph' && thread.hat[1] === self.temp.toLowerCase();
-			}
+			var scripts = this.object.getStage().getAllThreads().filter(function (thread) {
+				return thread.hat[0] === 'EventHatMorph' && thread.hat[1].toLowerCase() === self.temp.toLowerCase() && thread.done;
+			});
 			
-			var stage = this.object.getStage();
-			var scripts = stage.threads.filter(filter);
-			for (var si = 0; si < stage.sprites.length; si++) {
-				scripts = scripts.concat(stage.sprites[si].threads.filter(filter));
-			}
-			if (scripts.filter(function (thread) {
-				return thread.done;
-			}).length !== 0) {
-				this.evalCommandList(true);
-			}
+			this.evalCommandList(scripts.length === 0);
 			return;
 		case 'doIfElse':
 			this.evalCommandList(false, this.evalArg(block[1]) ? block[2] : block[3]);
@@ -1226,7 +1242,7 @@
 			if (!this.timer) {
 				this.timer = new jsc.Stopwatch();
 				this.evalCommandList(true);
-			} else if (this.timer.getElapsed() < parseFloat(this.evalArg(block[1])) * 1000) {
+			} else if (this.timer.getElapsed() < jsc.castNumber(this.evalArg(block[1])) * 1000) {
 				this.evalCommandList(true);
 			}
 			this.evalCommandList(false);
@@ -1234,7 +1250,7 @@
 		case 'glideSecs:toX:y:elapsed:from:':
 			if (!this.temp) {
 				this.timer = new jsc.Stopwatch();
-				this.temp = [this.object.position, this.object.getStage().fromScratchCoords(new jsc.Point(parseFloat(this.evalArg(block[2])) || 0, parseFloat(this.evalArg(block[3])) || 0)), parseFloat(this.evalArg(block[1]))];
+				this.temp = [this.object.position, this.object.getStage().fromScratchCoords(new jsc.Point(jsc.castNumber(this.evalArg(block[2])), jsc.castNumber(this.evalArg(block[3])))), jsc.castNumber(this.evalArg(block[1]))];
 			} else if (this.timer.getElapsed() < this.temp[2] * 1000) {
 				this.object.position = this.temp[0].subtract(this.temp[1]).multiplyBy(this.timer.getElapsed() / -1000 / this.temp[2]).add(this.temp[0]);
 			} else {
