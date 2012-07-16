@@ -659,7 +659,7 @@ var jsc = new (function JsScratch() {});
 		// scale can be either a jsc.Point or a scalar
 		var	o = this.origin.multiplyBy(scale),
 			c = this.corner.multiplyBy(scale);
-		return new jsc.Rectangle(o.x, o.y, c.x, c.y);
+		return new jsc.Rectangle(Math.min(o.x, c.x), Math.min(o.y, c.y), Math.max(o.x, c.x), Math.max(o.y, c.y));
 	};
 
 	jsc.Rectangle.prototype.translateBy = function (factor) {
