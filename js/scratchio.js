@@ -1,5 +1,3 @@
-"use strict";
-
 (function (jsc) {
 	// FieldStream ////////////////////////////////////////////
 	jsc.FieldStream = function (fields) {

@@ -1,5 +1,3 @@
-"use strict";
-
 (function (jsc) {
 	// Player /////////////////////////////////////////////////
 	jsc.Player = function (url, canvas, autoplay) {
@@ -596,7 +594,7 @@
 			}
 			
 			this.drawOn(this.ctx);
-		} while (stopwatch.getElapsed() < 5 && this.turbo)
+		} while (stopwatch.getElapsed() < 10 && this.turbo)
 		
 		var self = this;
 		requestAnimationFrame(function () {
@@ -722,7 +720,7 @@
 	
 	jsc.Stage.prototype.mousemove = function (e) {
 		e.preventDefault();
-		this.mouse = new jsc.Point(e.offsetX, e.offsetY);
+		this.mouse = new jsc.Point(e.offsetX || e.layerX, e.offsetY || e.layerY);
 	};
 	jsc.Stage.prototype.mouseup = function (e) {
 		this.mouseDown = false;
@@ -1030,6 +1028,10 @@
 			other.filters.ghost = g;
 			
 			var b = b1.intersect(b2);
+			
+			if (b.width() <= 0 || b.height() <= 0) {
+				return false;
+			}
 			
 			var t = bufferCtx1.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;
 			var s = bufferCtx2.getImageData(b.origin.x, b.origin.y, b.width(), b.height()).data;

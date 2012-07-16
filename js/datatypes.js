@@ -1,5 +1,3 @@
-"use strict";
-
 var jsc = new (function JsScratch() {});
 
 (function (jsc) {
