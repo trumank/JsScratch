@@ -732,9 +732,10 @@
 		this.mouseDown = true;
 	};
 	jsc.Stage.prototype.click = function (e) {
-		for (var i = this.sprites.length - 1; i >= 0; i--) {
-			if (this.sprites[i].isTouching('mouse') && this.sprites[i].filters.ghost < 100) {
-				var threads = this.sprites[i].threads
+		for (var i = 0; i < this.children.length; i++) {
+			var sprite = this.children[i];
+			if (sprite instanceof jsc.Sprite && sprite.isTouching('mouse') && sprite.filters.ghost < 100) {
+				var threads = sprite.threads
 				for (var j = 0; j < threads.length; j++) {
 					if (threads[j].hat[0] === 'MouseClickEventHatMorph') {
 						threads[j].start();
