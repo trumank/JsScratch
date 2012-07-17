@@ -391,7 +391,7 @@
 			return list[this.toListLine(args[0], list)] = args[2];
 		case 'getLine:ofList:':
 			var list = this.getList(args[1].toString());
-			return list[this.toListLine(args[0], list)];
+			return list[this.toListLine(args[0], list)] || 0;
 		case 'lineCountOfList:':
 			return this.getList(args[0].toString()).length;
 		default:
@@ -568,6 +568,9 @@
 		this.canvas.addEventListener('mousedown', function (e) {
 			self.mousedown(e);
 		}, false);
+		this.canvas.addEventListener('click', function (e) {
+			self.click(e);
+		}, false);
 		
 		
 		this.step();
@@ -728,6 +731,19 @@
 	jsc.Stage.prototype.mousedown = function (e) {
 		this.mouseDown = true;
 	};
+	jsc.Stage.prototype.click = function (e) {
+		for (var i = this.sprites.length - 1; i >= 0; i--) {
+			if (this.sprites[i].isTouching('mouse') && this.sprites[i].filters.ghost < 100) {
+				var threads = this.sprites[i].threads
+				for (var j = 0; j < threads.length; j++) {
+					if (threads[j].hat[0] === 'MouseClickEventHatMorph') {
+						threads[j].start();
+					}
+				}
+				break;
+			}
+		}
+	};
 
 
 	// Sprite ////////////////////////////////////////////
@@ -843,8 +859,44 @@
 		case 'ypos:':
 			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, jsc.castNumber(args[0])));
 		case 'bounceOffEdge':
-			this.position = this.position.add(this.getBoundingBox().amountToTranslateWithin(this.getStage().bounds));
-			return;
+			var tb = this.getBoundingBox();
+			var sb = this.getStage().bounds;
+			
+			tb.origin.x = Math.ceil(tb.origin.x);
+			tb.origin.y = Math.ceil(tb.origin.y);
+			tb.corner.x = Math.floor(tb.corner.x);
+			tb.corner.y = Math.floor(tb.corner.y);
+			
+			if (sb.containsRectangle(tb)) {
+				return;
+			}
+			
+			var rad = Math.PI/180 * (this.heading + 90);
+			var cos = Math.cos(rad);
+			var sin = -Math.sin(rad);
+			
+			var dx = 0, dy = 0;
+
+			if (tb.right() > sb.right()) {
+				dx = sb.right() - tb.right();
+				cos = -Math.abs(cos);
+			}
+			if (tb.bottom() > sb.bottom()) {
+				dy = sb.bottom() - tb.bottom();
+				sin = -cos;
+			}
+			if ((tb.left() + dx) < sb.left()) {
+				dx = sb.left() - tb.left();
+				cos = Math.abs(cos);
+			}
+			if ((tb.top() + dy) < sb.top()) {
+				dy = sb.top() - tb.top();
+				sin = -Math.abs(sin);
+			}
+			
+			this.heading = 180/Math.PI * Math.atan2(cos, sin) - 90;
+			
+			return this.position = this.position.add(new jsc.Point(dx, dy));
 		case 'xpos':
 			return this.getRelativePosition().x;
 		case 'ypos':

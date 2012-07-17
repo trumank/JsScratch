@@ -138,7 +138,7 @@ var jsc = new (function JsScratch() {});
 				array[i] = (c >> 16) & 0xFF;
 				array[i + 1] = (c >> 8) & 0xFF;
 				array[i + 2] = c & 0xFF;
-				array[i + 3] = this.depth == 16 ? (c >> 24) | 0xFF : 0xFF - ((c >> 24) | 0xFF);
+				array[i + 3] = (0xFF - c / 0x1000000).mod(0xFF);
 			}
 		}
 	}
@@ -615,7 +615,7 @@ var jsc = new (function JsScratch() {});
 		aRectangle. when all of me cannot be made to fit, prefer to keep
 		my topLeft inside. Taken from Squeak.
 	*/
-		var dx, dy;
+		var dx = 0, dy = 0;
 
 		if (this.right() > aRect.right()) {
 			dx = aRect.right() - this.right();
@@ -624,7 +624,7 @@ var jsc = new (function JsScratch() {});
 			dy = aRect.bottom() - this.bottom();
 		}
 		if ((this.left() + dx) < aRect.left()) {
-			dx = aRect.left() - this.right();
+			dx = aRect.left() - this.left();
 		}
 		if ((this.top() + dy) < aRect.top()) {
 			dy = aRect.top() - this.top();
