@@ -157,7 +157,30 @@
 
 	Number.prototype.mod = function (n) {
 		return ((this % n) + n) % n;
-	}
+	};
+
+	Number.prototype.and = function (op2) {
+		op1 = this;
+		var mod = Math.pow( 2, 32 ),
+			op1mod = op1 % mod,
+			op2mod = op2 % mod,
+			op164to32,
+			op264to32,
+			res32, res64, res;
+
+		op1 -= op1mod;
+		op2 -= op2mod;
+
+		res32 = ( op1mod & op2mod ) >>> 0;
+
+
+		op164to32 = op1 / mod;
+		op264to32 = op2 / mod;
+		res64 = ( op164to32 & op264to32 ) >>> 0;
+
+		res = res64 * mod + res32;
+		return res;
+	};
 
 
 	// Scriptable ////////////////////////////////////////

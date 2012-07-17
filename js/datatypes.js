@@ -138,7 +138,7 @@ var jsc = new (function JsScratch() {});
 				array[i] = (c >> 16) & 0xFF;
 				array[i + 1] = (c >> 8) & 0xFF;
 				array[i + 2] = c & 0xFF;
-				array[i + 3] = (0xFF - c / 0x1000000).mod(0xFF);
+				array[i + 3] = c.and(0xFF000000) / 0x1000000;
 			}
 		}
 	}
