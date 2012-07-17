@@ -1039,7 +1039,12 @@
 		var w = stage.width();
 		var h = stage.height();
 		
+		var b1 = this.getBoundingBox();
+		
 		if (obj === 'mouse') {
+			if (!b1.containsPoint(stage.mouse)) {
+				return false;
+			}
 			var bufferCtx1 = stage.bufferCtx1;
 			bufferCtx1.clearRect(0, 0, w, h);
 			var g = this.filters.ghost || 0;
@@ -1058,7 +1063,6 @@
 				return;
 			}
 			
-			var b1 = this.getBoundingBox();
 			var b2 = other.getBoundingBox();
 			
 			if (!b1.intersects(b2)) {
