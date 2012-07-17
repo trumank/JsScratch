@@ -98,8 +98,8 @@
 		}
 	}
 
-	window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
-		setTimeout(callback, 1000 / 60);
+	window.requestAnimationFrame = function (callback) {//window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
+		setTimeout(callback, 1000 / 40);
 	};
 	
 	window.addEventListener('error', function (e) {
