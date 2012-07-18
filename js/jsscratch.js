@@ -98,9 +98,9 @@
 		}
 	}
 
-	window.requestAnimationFrame = function (callback) {//window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
+	/*window.requestAnimationFrame = function (callback) {//window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
 		setTimeout(callback, 1000 / 40);
-	};
+	};*/
 	
 	window.addEventListener('error', function (e) {
 		alert('Error:\n' + e.message + (e.lineno ? ('\nLine number: ' + e.lineno) : '') + (e.filename && e.filename !== 'undefined' ? ('\nFile: ' + e.filename) : ''));
@@ -595,8 +595,9 @@
 			self.click(e);
 		}, false);
 		
-		
-		this.step();
+		setInterval(function () {
+			self.step();
+		}, 1000 / 40);
 	};
 	
 	jsc.Stage.prototype.width = function () {
@@ -609,7 +610,10 @@
 	
 	jsc.Stage.prototype.step = function () {
 		jsc.Stage.uber.step.call(this);
-		var stopwatch = new jsc.Stopwatch();
+		var stopwatch;
+		if (this.turbo) {
+			stopwatch = new jsc.Stopwatch();
+		}
 		do {
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
@@ -618,14 +622,10 @@
 			for (var i = 0; i < this.watchers.length; i++) {
 				this.watchers[i].update();
 			}
-			
-			this.drawOn(this.ctx);
-		} while (stopwatch.getElapsed() < 10 && this.turbo)
+		} while (this.turbo && stopwatch.getElapsed() < 10)
 		
-		var self = this;
-		requestAnimationFrame(function () {
-			self.step();
-		});
+		this.ctx.clearRect(0, 0, this.bounds.width(), this.bounds.height())
+		this.drawOn(this.ctx);
 	};
 
 	jsc.Stage.prototype.stepThreads = function () {
@@ -797,7 +797,9 @@
 		jsc.Sprite.uber.initBeforeLoad.call(this);
 		this.position = this.bounds.origin.add(this.costume.rotationCenter);
 		this.hidden = (this.flags & 1) === 1;
-		this.penColor = new jsc.Color(0, 0, 255);
+		this.pen = {};
+		this.pen.color = new jsc.Color(0, 0, 255);
+		this.pen.size = 1;
 	};
 
 	jsc.Sprite.prototype.drawOn = function (ctx, debug) {
@@ -920,7 +922,7 @@
 			
 			this.heading = 180/Math.PI * Math.atan2(cos, sin) - 90;
 			
-			return this.position = this.position.add(new jsc.Point(dx, dy));
+			return this.setPosition(this.position.add(new jsc.Point(dx, dy)));
 		case 'xpos':
 			return this.getRelativePosition().x;
 		case 'ypos':
@@ -1000,11 +1002,18 @@
 		case 'putPenUp':
 			return this.penDown = false;
 		case 'penColor:':
-			return this.penColor = args[0];
+			return this.pen.color = args[0];
+		case 'changePenSizeBy:':
+			return this.pen.size += jsc.castNumber(args[0]);
+		case 'penSize:':
+			return this.pen.size = jsc.castNumber(args[0]);
 		case 'stampCostume':
 			var h = this.hidden;
 			this.hidden = false;
+			var g = this.filters.ghost;
+			this.filters.ghost = 0;
 			this.drawOn(this.getStage().penCtx);
+			this.filters.ghost = g;
 			return this.hidden = h;
 		default:
 			return jsc.Sprite.uber.evalCommand.call(this, command, args);
@@ -1193,13 +1202,19 @@
 	};
 
 	jsc.Sprite.prototype.setRelativePosition = function (point) {
+		this.setPosition(point.multiplyBy(new jsc.Point(1, -1)).add(this.getStage().origin()));
+	};
+
+	jsc.Sprite.prototype.setPosition = function (point) {
 		if (this.penDown) {
 			var ctx = this.getStage().penCtx;
 			ctx.beginPath();
-			ctx.strokeStyle = this.penColor.toString();
+			ctx.strokeStyle = this.pen.color.toString();
+			ctx.lineWidth = this.pen.size;
+			ctx.lineCap = 'round';
 			ctx.moveTo(this.position.x, this.position.y);
 		}
-		this.position = point.multiplyBy(new jsc.Point(1, -1)).add(this.getStage().origin());
+		this.position = point;
 		if (this.penDown) {
 			ctx.lineTo(this.position.x, this.position.y);
 			ctx.stroke();

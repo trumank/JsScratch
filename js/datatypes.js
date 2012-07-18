@@ -152,7 +152,7 @@ var jsc = new (function JsScratch() {});
 	}
 
 	jsc.Color.prototype.toString = function () {
-		return 'rgba(' + this.r >> 0 + ',' + this.g >> 0 + ',' + this.b >> 0 + ',' + this.a >> 0 + ')';
+		return 'rgba(' + (this.r | 0) + ',' + (this.g | 0) + ',' + (this.b | 0) + ',' + (this.a | 0) + ')';
 	};
 
 
