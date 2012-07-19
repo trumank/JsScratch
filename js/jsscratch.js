@@ -998,6 +998,11 @@
 			return this.position.distanceTo(coords);
 		
 		case 'putPenDown':
+			var ctx = this.getStage().penCtx;
+			ctx.beginPath();
+			ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
+			ctx.fillStyle = this.pen.color.toString();
+			ctx.fill();
 			return this.penDown = true;
 		case 'putPenUp':
 			return this.penDown = false;
