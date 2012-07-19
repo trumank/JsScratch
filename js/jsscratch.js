@@ -609,12 +609,12 @@
 	};
 	
 	jsc.Stage.prototype.step = function () {
-		jsc.Stage.uber.step.call(this);
 		var stopwatch;
 		if (this.turbo) {
 			stopwatch = new jsc.Stopwatch();
 		}
 		do {
+			jsc.Stage.uber.step.call(this);
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
 			}
