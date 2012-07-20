@@ -159,29 +159,6 @@
 		return ((this % n) + n) % n;
 	};
 
-	Number.prototype.and = function (op2) {
-		op1 = this;
-		var mod = Math.pow( 2, 32 ),
-			op1mod = op1 % mod,
-			op2mod = op2 % mod,
-			op164to32,
-			op264to32,
-			res32, res64, res;
-
-		op1 -= op1mod;
-		op2 -= op2mod;
-
-		res32 = ( op1mod & op2mod ) >>> 0;
-
-
-		op164to32 = op1 / mod;
-		op264to32 = op2 / mod;
-		res64 = ( op164to32 & op264to32 ) >>> 0;
-
-		res = res64 * mod + res32;
-		return res;
-	};
-
 
 	// Scriptable ////////////////////////////////////////
 	jsc.Scriptable = function () {
@@ -426,7 +403,7 @@
 			} else if (args[1] === 'any') {
 				return list.splice(Math.floor(Math.random() * list.length), 0, args[0]);
 			}
-			var i = Math.round(castNumber(args[1]));
+			var i = Math.round(jsc.castNumber(args[1]));
 			if (i > 0) {
 				if (i < list.length - 1) {
 					list.splice(i, 0, args[0]);
@@ -987,7 +964,7 @@
 				costume = this.costumes[index];
 			} else {
 				for (var i = 0; i < this.costumes.length; i++) {
-					if (this.costumes[i].name.toLowerCase() === args[0].toString().toLowerCase()) {
+					if (this.costumes[i].name === args[0].toString()) {
 						costume = this.costumes[i];
 						index = i;
 					}
@@ -1001,6 +978,8 @@
 		case 'nextCostume':
 			this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
 			return this.costume = this.costumes[this.costumeIndex];
+		case 'costumeIndex':
+			return (this.costumeIndex).mod(this.costumes.length - 1) + 1;
 		case 'say:':
 			return console.log(args[0]);
 		case 'changeSizeBy:':
@@ -1009,6 +988,10 @@
 		case 'setSizeTo:':
 			var size = (jsc.castNumber(args[0])) / 100;
 			return this.scalePoint = new jsc.Point(size, size);
+		case 'changeStretchBy:':
+			return this.scalePoint.x += (jsc.castNumber(args[0])) / 100;
+		case 'setStretchTo:':
+			return this.scalePoint.x = new jsc.Point((jsc.castNumber(args[0])) / 100, 1).multiplyBy(this.scalePoint.y);
 		case 'scale':
 			return Math.round(100 * this.scalePoint.x);
 		case 'show':
@@ -1145,13 +1128,13 @@
 		} else {
 			var other = this.coerceSprite(obj);
 			if (!other || other.hidden) {
-				return;
+				return false;
 			}
 			
 			var b2 = other.getBoundingBox();
 			
 			if (!b1.intersects(b2)) {
-				return;
+				return false;
 			}
 			
 			var bufferCtx1 = stage.bufferCtx1;
