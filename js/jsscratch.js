@@ -394,9 +394,16 @@
 			return this.changeVariable(args[0], args[2], args[1] === 'changeVar:by:');
 
 		case 'append:toList:':
-			return this.getList(args[1].toString()).push(args[0]);
+			var list = this.getList(args[1].toString());
+			if (!list) {
+				return;
+			}
+			return list.push(args[0]);
 		case 'deleteLine:ofList:':
 			var list = this.getList(args[1].toString());
+			if (!list) {
+				return;
+			}
 			var i = -1;
 			if (args[0] === 'last') {
 				i = list.length - 1;
@@ -409,14 +416,54 @@
 				list.splice(i, 1);
 			}
 			return;
+		case 'insert:at:ofList:':
+			var list = this.getList(args[2].toString());
+			if (!list) {
+				return;
+			}
+			if (args[1] === 'last') {
+				return list.push(args[0]);
+			} else if (args[1] === 'any') {
+				return list.splice(Math.floor(Math.random() * list.length), 0, args[0]);
+			}
+			var i = Math.round(castNumber(args[1]));
+			if (i > 0) {
+				if (i < list.length - 1) {
+					list.splice(i, 0, args[0]);
+				} else {
+					list.push(args[0]);
+				}
+			}
+			return;
 		case 'setLine:ofList:to:':
 			var list = this.getList(args[1].toString());
+			if (!list) {
+				return;
+			}
 			return list[this.toListLine(args[0], list)] = args[2];
 		case 'getLine:ofList:':
 			var list = this.getList(args[1].toString());
+			if (!list) {
+				return 0;
+			}
 			return list[this.toListLine(args[0], list)] || 0;
 		case 'lineCountOfList:':
-			return this.getList(args[0].toString()).length;
+			var list = this.getList(args[0].toString());
+			if (!list) {
+				return 0;
+			}
+			return list.length;
+		case 'list:contains:':
+			var list = this.getList(args[0].toString());
+			if (!list) {
+				return false;
+			}
+			if (list.indexOf(args[1]) === -1) {
+				if (list.indexOf(args[1].toString()) === -1) {
+					return false;
+				}
+			}
+			return true;
 		default:
 			console.log('Unknown command: ' + command);
 		}
