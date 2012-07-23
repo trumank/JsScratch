@@ -118,9 +118,10 @@
 			return arr;
 		case 12: //SoundBuffer
 			var size = this.stream.getUint32() * 2;
-			var arr = [];
-			for (var i = 0; i < size; i++) {
+			var arr = new Array(size);
+			for (var i = 0; i < size; i += 2) {
 				arr[i] = this.stream.getUint8();
+				arr[i + 1] = this.stream.getUint8();
 			}
 			return arr;
 		case 13: //Bitmap
