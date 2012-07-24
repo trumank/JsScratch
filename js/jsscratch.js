@@ -1596,15 +1596,22 @@
 			this.samples = this.originalSound.samples;
 		}
 		
+		for (var i = 0; i < this.samples; i += 2) {
+			var swap = this.samples[i];
+			this.samples[i] = this.samples[i + 1];
+			this.samples[i + 1] = swap;
+		}
+		
 		var rw = new RIFFWAVE();
 		rw.header.bitsPerSample = 16;
+		rw.header.sampleRate = this.originalSound.originalSamplingRate;
 		rw.Make(this.samples);
 		
 		this.audio.src = rw.dataURI;
 	};
 	
 	jsc.SoundMedia.prototype.decompress = function () {
-		var stepSizeTable = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767];
+		var ima_step_table = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767];
 		
 		var indices = [
 			[-1, 2],
@@ -1613,13 +1620,43 @@
 			[-1, -1, -1, -1, -1, -1, -1, -1, 1, 2, 4, 6, 8, 10, 13, 16]
 		];
 		
+		var ima_index_table = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
+		
 		
 		var soundData = this.compressedData;
 		var bitsPerSample = this.compressedBitsPerSample;
 		
 		var indexTable = indices[this.compressedBitsPerSample - 2];
 		
-		var signMask = 1 << (bitsPerSample - 1);
+		var predictor = 0;
+		var step_index = 0;
+		var step = ima_step_table[step_index]
+		
+		var nibbles = [];
+		
+		for (var i = 0; i < soundData.length; i++) {
+			nibbles.push((soundData[i] >> 4) & 8);
+			nibbles.push(soundData[i] & 8);
+		}
+		
+		this.samples = [];
+		
+		for (var i = 0; i < nibbles.length; i++) {
+			var nibble = nibbles[i];
+			
+			step_index += ima_index_table[nibble];
+			step_index = Math.min(Math.max(step_index, 0), 88);
+
+			predictor += ((nibble < 4 ? nibble : 4 - nibble) + 0.5) * step / 4;
+			predictor = Math.min(Math.max(predictor, -32768), 32767);
+
+			this.samples.push((predictor >> 8) & 255);
+			this.samples.push(predictor & 255);
+			
+			step = ima_step_table[step_index];
+		}
+		
+		/*var signMask = 1 << (bitsPerSample - 1);
 		var valueMask = signMask - 1;
 		var valueHighBit = signMask >> 1;
 		
@@ -1653,11 +1690,11 @@
 			}
 			l7 += l6;
 			l3 += (l5 & signMask) === 0 ? l7 : -l7
-			l4 += indexTable[l5];
+			l4 += indexTable[l5 & l8];
 			l4 = Math.min(Math.max(l4, 0), 88);
 			l3 = Math.min(Math.max(l3, -32768), 32767);
-			l2.push((l3 >> 8) & 0xFF);
-			l2.push(l3 & 0xFF);
+			l2.push(l3 & 255);
+			l2.push((l3 >> 8) & 255);
 		}
 		
 		function nextCode() {
@@ -1686,7 +1723,7 @@
 			}
 			return j2;
 		}
-		this.samples = l2;
+		this.samples = l2;*/
 	};
 	
 	// SampledSound ///////////////////////////////////////////
