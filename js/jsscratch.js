@@ -321,7 +321,28 @@
 			return 0;
 
 		case 'playSound:':
+			var sound;
+			
+			var index;
+			var cast = jsc.castNumberOrNull(args[0]);
+			if (cast === null) {
+				for (var i = 0; i < this.sounds.length; i++) {
+					if (this.sounds[i].name.toLowerCase() === args[0].toString().toLowerCase()) {
+						sound = this.sounds[i];
+						index = i;
+					}
+				}
+			} else {
+				index = (Math.round(cast) - 1).mod(this.sounds.length);
+				sound = this.sounds[index];
+			}
+			if (sound) {
+				sound.play();
+			}
 			return;
+		case 'stopAllSounds':
+			this.getStage().stopAllSounds();
+			break;
 		
 		case '+':
 			return jsc.castNumber(args[0]) + jsc.castNumber(args[1]);
@@ -536,6 +557,12 @@
 		return this.getStage().getSprite(sprite.toString());
 	};
 
+	jsc.Scriptable.prototype.stopAllSounds = function () {
+		for (var i = 0; i < this.sounds.length; i++) {
+			this.sounds[i].stop();
+		}
+	};
+
 
 	// jsc.Stage /////////////////////////////////////////////
 	jsc.Stage = function () {
@@ -731,10 +758,11 @@
 	};
 
 	jsc.Stage.prototype.stopAll = function () {
+		jsc.Stage.uber.stopAll.call(this);
 		for (var i = 0; i < this.sprites.length; i++) {
 			this.sprites[i].stopAll();
 		}
-		jsc.Stage.uber.stopAll.call(this);
+		this.stopAllSounds();
 	};
 
 	jsc.Stage.prototype.start = function () {
@@ -807,6 +835,13 @@
 				}
 				break;
 			}
+		}
+	};
+
+	jsc.Stage.prototype.stopAllSounds = function () {
+		jsc.Stage.uber.stopAllSounds.call(this);
+		for (var i = 0; i < this.sprites.length; i++) {
+			this.sprites[i].stopAllSounds();
 		}
 	};
 
@@ -1623,6 +1658,23 @@
 		this.bitsPerSample = 16
 		
 		this.audio.src = jsc.createWave(this.samples, this.sampleRate, this.bitsPerSample);
+		this.playing = false;
+	};
+	
+	jsc.SoundMedia.prototype.stop = function () {
+		this.audio.pause();
+		this.audio.currentTime = 0;
+		this.playing = false;
+	};
+	
+	jsc.SoundMedia.prototype.play = function () {
+		this.stop();
+		this.audio.play();
+		this.playing = true;
+	};
+	
+	jsc.SoundMedia.prototype.setVolume = function (volume) {
+		this.audio.volume = volume;
 	};
 	
 	jsc.SoundMedia.prototype.decompress = function () {
