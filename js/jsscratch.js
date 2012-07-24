@@ -97,6 +97,23 @@
 			}
 		}
 	}
+	
+	jsc.createWave = function(samples, sampleRate, bitsPerSample) {
+		var string = 'RIFF' + u32(36 + samples.length) + 'WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00' + u32(sampleRate) + u32(sampleRate * bitsPerSample / 8) + u16(bitsPerSample / 8) + u16(bitsPerSample) + 'data' + u32(samples.length);
+
+		function u32(i) {
+			return String.fromCharCode(i & 0xFF, (i >> 8) & 0xFF, (i >> 16) & 0xFF, (i >> 24) & 0xFF);
+		}
+
+		function u16(i) {
+			return String.fromCharCode(i & 0xFF, (i >> 8) & 0xFF);
+		}
+		
+		for (var i = 0; i < samples.length; i++) {
+			string += String.fromCharCode(samples[i]);
+		}
+		return 'data:audio/wav;base64,' + btoa(string);
+	};
 
 	/*window.requestAnimationFrame = function (callback) {//window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
 		setTimeout(callback, 1000 / 40);
@@ -1592,26 +1609,24 @@
 		
 		if (this.compressedData) {
 			this.decompress();
+			this.sampleRate = this.compressedSampleRate;
 		} else {
 			this.samples = this.originalSound.samples;
+			for (var i = 0; i < this.samples.length; i += 2) {
+				var swap = this.samples[i];
+				this.samples[i] = this.samples[i + 1];
+				this.samples[i + 1] = swap;
+			}
+			this.sampleRate = 22050;
 		}
 		
-		for (var i = 0; i < this.samples; i += 2) {
-			var swap = this.samples[i];
-			this.samples[i] = this.samples[i + 1];
-			this.samples[i + 1] = swap;
-		}
+		this.bitsPerSample = 16
 		
-		var rw = new RIFFWAVE();
-		rw.header.bitsPerSample = 16;
-		rw.header.sampleRate = this.originalSound.originalSamplingRate;
-		rw.Make(this.samples);
-		
-		this.audio.src = rw.dataURI;
+		this.audio.src = jsc.createWave(this.samples, this.sampleRate, this.bitsPerSample);
 	};
 	
 	jsc.SoundMedia.prototype.decompress = function () {
-		var ima_step_table = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767];
+		var stepSizeTable = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767];
 		
 		var indices = [
 			[-1, 2],
@@ -1620,45 +1635,9 @@
 			[-1, -1, -1, -1, -1, -1, -1, -1, 1, 2, 4, 6, 8, 10, 13, 16]
 		];
 		
-		var ima_index_table = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
-		
-		
+		var indexTable = indices[this.compressedBitsPerSample - 2];
 		var soundData = this.compressedData;
 		var bitsPerSample = this.compressedBitsPerSample;
-		
-		var indexTable = indices[this.compressedBitsPerSample - 2];
-		
-		var predictor = 0;
-		var step_index = 0;
-		var step = ima_step_table[step_index]
-		
-		var nibbles = [];
-		
-		for (var i = 0; i < soundData.length; i++) {
-			nibbles.push((soundData[i] >> 4) & 8);
-			nibbles.push(soundData[i] & 8);
-		}
-		
-		this.samples = [];
-		
-		for (var i = 0; i < nibbles.length; i++) {
-			var nibble = nibbles[i];
-			
-			step_index += ima_index_table[nibble];
-			step_index = Math.min(Math.max(step_index, 0), 88);
-
-			predictor += ((nibble < 4 ? nibble : 4 - nibble) + 0.5) * step / 4;
-			predictor = Math.min(Math.max(predictor, -32768), 32767);
-
-			this.samples.push((predictor >> 8) & 255);
-			this.samples.push(predictor & 255);
-			
-			step = ima_step_table[step_index];
-		}
-		
-		/*var signMask = 1 << (bitsPerSample - 1);
-		var valueMask = signMask - 1;
-		var valueHighBit = signMask >> 1;
 		
 		var l5 = 0;
 		var l6 = 0;
@@ -1672,6 +1651,10 @@
 		
 		var bitPosition = 0;
 		var currentByte = 0;
+		
+		var signMask = 1 << (bitsPerSample - 1);
+		var valueMask = signMask - 1;
+		var valueHighBit = signMask >> 1;
 		
 		while (true) {
 			l5 = nextCode.call(this);
@@ -1690,7 +1673,7 @@
 			}
 			l7 += l6;
 			l3 += (l5 & signMask) === 0 ? l7 : -l7
-			l4 += indexTable[l5 & l8];
+			l4 += indexTable[l5 & valueMask];
 			l4 = Math.min(Math.max(l4, 0), 88);
 			l3 = Math.min(Math.max(l3, -32768), 32767);
 			l2.push(l3 & 255);
@@ -1705,25 +1688,26 @@
 			while (true) {
 				j4 = j3 - bitPosition;
 				j2 += j4 < 0 ? currentByte >> -j4 : currentByte << j4;
-				if (j4 > 0) {
-					j3 -= bitPosition;
-					if (index < soundData.length) {
-						currentByte = soundData[index++];
-						bitPosition = 8;
-					} else {
-						currentByte = 0;
-						bitPosition = 0;
-						return -1;
-					}
-					continue;
+				if (j4 <= 0) {
+					break;
 				}
-				bitPosition -= j3;
-				currentByte = currentByte & 255 >> 8 - bitPosition;
-				break;
+				j3 -= bitPosition;
+				if (index < soundData.length) {
+					currentByte = soundData[index++];
+				} else {
+					currentByte = -1;
+				}
+				bitPosition = 8;
+				if (currentByte < 0) {
+					bitPosition = 0;
+					return j2;
+				}
 			}
+			bitPosition -= j3;
+			currentByte = currentByte & 255 >> 8 - bitPosition;
 			return j2;
 		}
-		this.samples = l2;*/
+		this.samples = l2;
 	};
 	
 	// SampledSound ///////////////////////////////////////////
@@ -1828,123 +1812,3 @@
 
 	//[16777215, 0, 16777215, 8421504, 16711680, 65280, 255, 65535, 16776960, 16711935, 2105376, 4210752, 6316128, 10461087, 12566463, 14671839, 526344, 1052688, 1579032, 2631720, 3158064, 3684408, 4737096, 5263440, 5789784, 6842472, 7368816, 7895160, 8882055, 9408399, 9934743, 10987431, 11513775, 12040119, 13092807, 13619151, 14145495, 15198183, 15724527, 16250871, 0, 13056, 26112, 39168, 52224, 65280, 51, 13107, 26163, 39219, 52275, 65331, 102, 13158, 26214, 39270, 52326, 65382, 153, 13209, 26265, 39321, 52377, 65433, 204, 13260, 26316, 39372, 52428, 65484, 255, 13311, 26367, 39423, 52479, 65535, 3342336, 3355392, 3368448, 3381504, 3394560, 3407616, 3342387, 3355443, 3368499, 3381555]
 }) (jsc);
-
-/* 
- * RIFFWAVE.js v0.02 - Audio encoder for HTML5 <audio> elements.
- * Copyright (C) 2011 Pedro Ladaria <pedro.ladaria at Gmail dot com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- * The full license is available at http://www.gnu.org/licenses/gpl.html
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- *
- * Changelog:
- *
- * 0.01 - First release
- * 0.02 - New faster base64 encoding
- *
- */
-
-var FastBase64 = {
-
-  chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-  encLookup: [],
-
-  Init: function() {
-    for (var i=0; i<4096; i++) {
-      this.encLookup[i] = this.chars[i >> 6] + this.chars[i & 0x3F];
-    }
-  },
-
-  Encode: function(src) {
-    var len = src.length;
-    var dst = '';
-    var i = 0;
-    while (len > 2) {
-      n = (src[i] << 16) | (src[i+1]<<8) | src[i+2];
-      dst+= this.encLookup[n >> 12] + this.encLookup[n & 0xFFF];
-      len-= 3;
-      i+= 3;
-    }
-    if (len > 0) {
-      var n1= (src[i] & 0xFC) >> 2;
-      var n2= (src[i] & 0x03) << 4;
-      if (len > 1) n2 |= (src[++i] & 0xF0) >> 4;
-      dst+= this.chars[n1];
-      dst+= this.chars[n2];
-      if (len == 2) {
-        var n3= (src[i++] & 0x0F) << 2;
-        n3 |= (src[i] & 0xC0) >> 6;
-        dst+= this.chars[n3];
-      }
-      if (len == 1) dst+= '=';
-      dst+= '=';
-    }
-    return dst;
-  } // end Encode
-
-}
-
-FastBase64.Init();
-
-var RIFFWAVE = function(data) {
-
-  this.data = [];        // Byte array containing audio samples
-  this.wav = [];         // Array containing the generated wave file
-  this.dataURI = '';     // http://en.wikipedia.org/wiki/Data_URI_scheme
-
-  this.header = {                         // OFFS SIZE NOTES
-    chunkId      : [0x52,0x49,0x46,0x46], // 0    4    "RIFF" = 0x52494646
-    chunkSize    : 0,                     // 4    4    36+SubChunk2Size = 4+(8+SubChunk1Size)+(8+SubChunk2Size)
-    format       : [0x57,0x41,0x56,0x45], // 8    4    "WAVE" = 0x57415645
-    subChunk1Id  : [0x66,0x6d,0x74,0x20], // 12   4    "fmt " = 0x666d7420
-    subChunk1Size: 16,                    // 16   4    16 for PCM
-    audioFormat  : 1,                     // 20   2    PCM = 1
-    numChannels  : 1,                     // 22   2    Mono = 1, Stereo = 2, etc.
-    sampleRate   : 8000,                  // 24   4    8000, 44100, etc
-    byteRate     : 0,                     // 28   4    SampleRate*NumChannels*BitsPerSample/8
-    blockAlign   : 0,                     // 32   2    NumChannels*BitsPerSample/8
-    bitsPerSample: 8,                     // 34   2    8 bits = 8, 16 bits = 16, etc...
-    subChunk2Id  : [0x64,0x61,0x74,0x61], // 36   4    "data" = 0x64617461
-    subChunk2Size: 0                      // 40   4    data size = NumSamples*NumChannels*BitsPerSample/8
-  };
-
-  function u32ToArray(i) { return [i&0xFF, (i>>8)&0xFF, (i>>16)&0xFF, (i>>24)&0xFF]; }
-
-  function u16ToArray(i) { return [i&0xFF, (i>>8)&0xFF]; }
-
-  this.Make = function(data) {
-    if (data instanceof Array) this.data = data;
-    this.header.byteRate = (this.header.sampleRate * this.header.numChannels * this.header.bitsPerSample) >> 3;
-    this.header.blockAlign = (this.header.numChannels * this.header.bitsPerSample) >> 3;
-    this.header.subChunk2Size = this.data.length;
-    this.header.chunkSize = 36 + this.header.subChunk2Size;
-    
-    this.wav = this.header.chunkId.concat(
-      u32ToArray(this.header.chunkSize),
-      this.header.format,
-      this.header.subChunk1Id,
-      u32ToArray(this.header.subChunk1Size),
-      u16ToArray(this.header.audioFormat),
-      u16ToArray(this.header.numChannels),
-      u32ToArray(this.header.sampleRate),
-      u32ToArray(this.header.byteRate),
-      u16ToArray(this.header.blockAlign),
-      u16ToArray(this.header.bitsPerSample),    
-      this.header.subChunk2Id,
-      u32ToArray(this.header.subChunk2Size),
-      this.data
-    );
-    this.dataURI = 'data:audio/wav;base64,'+FastBase64.Encode(this.wav);
-  };
-
-  if (data instanceof Array) this.Make(data);
-
-}; // end RIFFWAVE
-
