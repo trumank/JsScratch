@@ -748,6 +748,9 @@
 				this.costumeIndex = index;
 			}
 			return;
+		case 'nextBackground':
+			this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
+			return this.costume = this.costumes[this.costumeIndex];
 		default:
 			return jsc.Stage.uber.evalCommand.call(this, command, args);
 		}
@@ -944,6 +947,9 @@
 			return this.setRelativePosition(new jsc.Point(jsc.castNumber(args[0]), jsc.castNumber(args[1])));
 		case 'gotoSpriteOrMouse:':
 			var stage = this.getStage();
+			if (args[0] === null) {
+				return;
+			}
 			if (args[0].toString() === 'mouse') {
 				return this.setRelativePosition(stage.toScratchCoords(stage.mouse));
 			}
@@ -1043,7 +1049,7 @@
 		case 'changeStretchBy:':
 			return this.scalePoint.x += (jsc.castNumber(args[0])) / 100;
 		case 'setStretchTo:':
-			return this.scalePoint.x = new jsc.Point((jsc.castNumber(args[0])) / 100, 1).multiplyBy(this.scalePoint.y);
+			return this.scalePoint.x = (jsc.castNumber(args[0])) / 100 * this.scalePoint.y;
 		case 'scale':
 			return Math.round(100 * this.scalePoint.x);
 		case 'show':
@@ -1091,9 +1097,9 @@
 		case 'penColor:':
 			return this.pen.color = args[0];
 		case 'changePenSizeBy:':
-			return this.pen.size += jsc.castNumber(args[0]);
+			return this.pen.size = Math.max(this.pen.size + jsc.castNumber(args[0]), 1);
 		case 'penSize:':
-			return this.pen.size = jsc.castNumber(args[0]);
+			return this.pen.size = Math.max(jsc.castNumber(args[0]), 0);
 		case 'stampCostume':
 			var h = this.hidden;
 			this.hidden = false;
