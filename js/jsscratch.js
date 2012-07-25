@@ -321,22 +321,8 @@
 			return 0;
 
 		case 'playSound:':
-			var sound;
-			
-			var index;
-			var cast = jsc.castNumberOrNull(args[0]);
-			if (cast === null) {
-				for (var i = 0; i < this.sounds.length; i++) {
-					if (this.sounds[i].name.toLowerCase() === args[0].toString().toLowerCase()) {
-						sound = this.sounds[i];
-						index = i;
-					}
-				}
-			} else {
-				index = (Math.round(cast) - 1).mod(this.sounds.length);
-				sound = this.sounds[index];
-			}
-			if (sound) {
+			var sound = this.getSound(args[0]);
+			if (sound !== null) {
 				sound.play();
 			}
 			return;
@@ -516,7 +502,21 @@
 			o[1].needsUpdate = true;
 		}
 	};
-
+	
+	jsc.Scriptable.prototype.getSound = function (sound) {
+		var cast = jsc.castNumberOrNull(sound);
+		if (cast === null) {
+			for (var i = 0; i < this.sounds.length; i++) {
+				if (this.sounds[i].name.toLowerCase() === sound.toString().toLowerCase()) {
+					return this.sounds[i];
+				}
+			}
+		} else {
+			return this.sounds[(Math.round(cast) - 1).mod(this.sounds.length)];
+		}
+		return null;
+	};
+	
 	jsc.Scriptable.prototype.addWatcher = function (variable, watcher) {
 		if (this.variables.at(variable) instanceof Array) {
 			this.variables.at(variable).push(watcher);
@@ -1138,11 +1138,11 @@
 		var x4 = xp2 * cos - yp1 * sin;
 		var y4 = xp2 * sin + yp1 * cos;         
 	 
-		var rx1 = p.x + Math.min(x1, x2, x3, x4) * this.scalePoint.x - 1;
-		var ry1 = p.y + Math.min(y1, y2, y3, y4) * this.scalePoint.y - 1;
+		var rx1 = Math.floor(p.x + Math.min(x1, x2, x3, x4) * this.scalePoint.x);
+		var ry1 = Math.floor(p.y + Math.min(y1, y2, y3, y4) * this.scalePoint.y);
 	 
-		var rx2 = p.x + Math.max(x1, x2, x3, x4) * this.scalePoint.x + 1;
-		var ry2 = p.y + Math.max(y1, y2, y3, y4) * this.scalePoint.y + 1;
+		var rx2 = Math.ceil(p.x + Math.max(x1, x2, x3, x4) * this.scalePoint.x);
+		var ry2 = Math.ceil(p.y + Math.max(y1, y2, y3, y4) * this.scalePoint.y);
 		
 		return new jsc.Rectangle(rx1, ry1, rx2, ry2);
 	};
@@ -1150,7 +1150,7 @@
 	jsc.Sprite.prototype.isTouching = function (obj) {
 		var stage = this.getStage();
 		if (obj === 'edge') {
-			return !stage.bounds.containsRectangle(this.getBoundingBox());
+			return !stage.bounds.containsRectangle(this.getBoundingBox().expandBy(-2).translateBy(1));
 		}
 		if (this.hidden) {
 			return false;
@@ -1418,6 +1418,13 @@
 			}
 			return;
 		case 'doPlaySoundAndWait':
+			if (this.temp === null) {
+				this.temp = this.object.getSound(this.evalArg(block[1]));
+				this.temp.play();
+				this.evalCommandList(true);
+				return;
+			}
+			this.evalCommandList(this.temp.playing);
 			return;
 		case 'doBroadcastAndWait':
 			var self = this;
@@ -1640,7 +1647,11 @@
 	};
 	
 	jsc.SoundMedia.prototype.initBeforeLoad = function () {
+		var self = this;
 		this.audio = new Audio();
+		this.audio.addEventListener('ended', function () {
+			self.playing = false;
+		}, false);
 		
 		if (this.compressedData) {
 			this.decompress();
@@ -1663,7 +1674,9 @@
 	
 	jsc.SoundMedia.prototype.stop = function () {
 		this.audio.pause();
-		this.audio.currentTime = 0;
+		try {
+			this.audio.currentTime = 0;
+		} catch (e) {}
 		this.playing = false;
 	};
 	
