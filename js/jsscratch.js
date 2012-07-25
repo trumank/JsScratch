@@ -119,9 +119,9 @@
 		setTimeout(callback, 1000 / 40);
 	};*/
 	
-	window.addEventListener('error', function (e) {
+	/*window.addEventListener('error', function (e) {
 		alert('Error:\n' + e.message + (e.lineno ? ('\nLine number: ' + e.lineno) : '') + (e.filename && e.filename !== 'undefined' ? ('\nFile: ' + e.filename) : ''));
-	}, false);
+	}, false);*/
 	
 	jsc.createPlayer = function (url, autoplay) {
 		var container = document.createElement('div');
@@ -256,7 +256,7 @@
 
 	jsc.Scriptable.prototype.broadcast = function (broadcast) {
 		for (var i = 0; i < this.threads.length; i++) {
-			if (this.threads[i].hat[0] === 'EventHatMorph' && this.threads[i].hat[1].toLowerCase() === broadcast.toLowerCase()) {
+			if (this.threads[i].hat[0] === 'EventHatMorph' && this.threads[i].hat[1].toLowerCase() === broadcast.toLowerCase() && this.threads[i].done) {
 				this.threads[i].start();
 			}
 		}
@@ -268,209 +268,48 @@
 		}
 	};
 
-	jsc.Scriptable.prototype.evalCommand = function (command, args) {
-		switch (command) {
-		case 'broadcast:':
-			return this.getStage().addBroadcastToQueue(args[0].toString());
-		case 'stopAll':
-			return this.getStage().stopAll();
-
-		case 'changeGraphicEffect:by:':
-			return this.filters[args[0].toString()] += jsc.castNumber(args[1]);
-		case 'setGraphicEffect:to:':
-			return this.filters[args[0].toString()] = jsc.castNumber(args[1]);
-		case 'filterReset':
-			return this.filters = {};
-		
-		case 'mouseX':
-			return this.getStage().mouse.x - this.getStage().origin().x;
-		case 'mouseY':
-			return this.getStage().origin().y - this.getStage().mouse.y;
-		case 'mousePressed':
-			return this.getStage().mouseDown;
-		case 'keyPressed:':
-			var keys = {
-				"space": 32,
-				"up arrow": 38,
-				"down arrow": 40,
-				"right arrow": 39,
-				"left arrow": 37,
-				"up": 38,
-				"down": 40,
-				"right": 39,
-				"left": 37
-			};
-			var str = args[0].toString().toLowerCase();
-			if (keys[str]) {
-				return this.getStage().keys[keys[str]];
-			}
-			return this.getStage().keys[args[0].toString().toUpperCase().charCodeAt(0)];
-		case 'timerReset':
-			return this.getStage().timer.reset();
-		case 'timer':
-			return this.getStage().timer.getElapsed() / 1000;
-		case 'getAttribute:of:':
-			var s = this.coerceSprite(args[1]);
-			if (s) {
-				var a = args[0].toString();
-				if (typeof s.variables.obj[a] !== 'undefined') {
-					return s.variables.obj[a];
-				}
-				return s.getAttribute(a);
-			}
-			return 0;
-
-		case 'playSound:':
-			var sound = this.getSound(args[0]);
-			if (sound !== null) {
-				sound.play();
-			}
-			return;
-		case 'stopAllSounds':
-			this.getStage().stopAllSounds();
-			break;
-		
-		case '+':
-			return jsc.castNumber(args[0]) + jsc.castNumber(args[1]);
-		case '-':
-			return jsc.castNumber(args[0]) - jsc.castNumber(args[1]);
-		case '*':
-			return jsc.castNumber(args[0]) * jsc.castNumber(args[1]);
-		case '/':
-			return jsc.castNumber(args[0]) / jsc.castNumber(args[1]);
-		case 'randomFrom:to:':
-			var n1 = jsc.castNumber(args[0]);
-			var n2 = jsc.castNumber(args[1]);
-			return Math.round(Math.random() * (n2 - n1) + n1);
-		case '<':
-			var a = parseFloat(args[0]);
-			var b = parseFloat(args[1]);
-			return (isNaN(a) ? args[0] : a) < (isNaN(b) ? args[1] : b);
-		case '=':
-			return args[0].toString().toLowerCase() === args[1].toString().toLowerCase();
-		case '>':
-			var a = parseFloat(args[0]);
-			var b = parseFloat(args[1]);
-			return (isNaN(a) ? args[0] : a) > (isNaN(b) ? args[1] : b);
-		case '&':
-			return args[0] && args[1];
-		case '|':
-			return args[0] || args[1];
-		case 'not':
-			return !args[0];
-		case 'concatenate:with:':
-			return args[0].toString() + args[1].toString();
-		case 'letter:of:':
-			return args[1].toString()[(jsc.castNumber(args[0])) - 1] || '';
-		case 'stringLength:':
-			return args[0].toString().length;
-		case '\\\\':
-			return jsc.castNumber(args[0]).mod(jsc.castNumber(args[1]));
-		case 'rounded':
-			return Math.round(jsc.castNumber(args[0]));
-		case 'computeFunction:of:':
-			var n = jsc.castNumber(args[1]);
-			switch (args[0].toString().toLowerCase()) {
-			case 'abs': return Math.abs(n);
-			case 'sqrt': return Math.sqrt(n);
-			case 'sin': return Math.sin(Math.PI/180 * n);
-			case 'cos': return Math.cos(Math.PI/180 * n);
-			case 'tan': return Math.tan(Math.PI/180 * n);
-			case 'asin': return 180/Math.PI * Math.asin(Math.max(-1, Math.min(1, n)));
-			case 'acos': return 180/Math.PI * Math.acos(Math.max(-1, Math.min(1, n)));
-			case 'atan': return 180/Math.PI * Math.atan(n);
-			case 'ln': return Math.log(n);
-			case 'log': return Math.log(n);
-			case 'e ^': return Math.pow(Math.E, n);
-			case '10 ^': return Math.pow(10, n);
-			}
-			return 0;
-
-		case 'clearPenTrails':
-			return this.getStage().penCtx.clearRect(0, 0, this.getStage().penCanvas.width, this.getStage().penCanvas.height);
-
-		case 'readVariable':
-			return this.getVariable(args[0].toString());
-		case 'changeVariable':
-			return this.changeVariable(args[0], args[2], args[1] === 'changeVar:by:');
-
-		case 'append:toList:':
-			var list = this.getList(args[1].toString());
-			if (!list) {
-				return;
-			}
-			return list.push(args[0]);
-		case 'deleteLine:ofList:':
-			var list = this.getList(args[1].toString());
-			if (!list) {
-				return;
-			}
-			var i = -1;
-			if (args[0] === 'last') {
-				i = list.length - 1;
-			} else if (args[0] === 'all') {
-				return list.splice(0, list.length)
-			} else {
-				i = parseInt(args[0]) - 1;
-			}
-			if (i && i !== -1) {
-				list.splice(i, 1);
-			}
-			return;
-		case 'insert:at:ofList:':
-			var list = this.getList(args[2].toString());
-			if (!list) {
-				return;
-			}
-			if (args[1] === 'last') {
-				return list.push(args[0]);
-			} else if (args[1] === 'any') {
-				return list.splice(Math.floor(Math.random() * list.length), 0, args[0]);
-			}
-			var i = Math.round(jsc.castNumber(args[1]));
-			if (i > 0) {
-				if (i < list.length - 1) {
-					list.splice(i, 0, args[0]);
-				} else {
-					list.push(args[0]);
-				}
-			}
-			return;
-		case 'setLine:ofList:to:':
-			var list = this.getList(args[1].toString());
-			if (!list) {
-				return;
-			}
-			return list[this.toListLine(args[0], list)] = args[2];
-		case 'getLine:ofList:':
-			var list = this.getList(args[1].toString());
-			if (!list) {
-				return 0;
-			}
-			return list[this.toListLine(args[0], list)] || 0;
-		case 'lineCountOfList:':
-			var list = this.getList(args[0].toString());
-			if (!list) {
-				return 0;
-			}
-			return list.length;
-		case 'list:contains:':
-			var list = this.getList(args[0].toString());
-			if (!list) {
-				return false;
-			}
-			if (list.indexOf(args[1]) === -1) {
-				if (list.indexOf(args[1].toString()) === -1) {
-					return false;
-				}
-			}
-			return true;
-		default:
-			console.log('Unknown command: ' + command);
+	jsc.Scriptable.prototype.getCommandFunctionName = function (selector) {
+		var special = {
+			"xpos":"getXPos",
+			"xpos:":"setXPos",
+			"ypos":"getYPos",
+			"ypos:":"setYPos",
+			
+			"broadcast:":"scratchBroadcast",
+			"stopAll":"stopAllScripts",
+			
+			"costumeIndex":"getCostumeIndex",
+			"heading":"getHeading",
+			"heading:":"setHeading",
+		};
+		if (special[selector]) {
+			return special[selector];
 		}
-		return 0;
+		return selector.replace(/\:/g, '');
 	};
 
+	jsc.Scriptable.prototype.getReporterFunctionName = function (selector) {
+		var special = {
+			"=":"equals",
+			">":"greatorThan",
+			"<":"lessThan",
+			
+			"+":"add",
+			"-":"subtract",
+			"*":"multiply",
+			"/":"divide",
+			
+			"|":"or",
+			"&":"and",
+			
+			"\\\\":"and",
+		};
+		if (special[selector]) {
+			return special[selector];
+		}
+		return selector.replace(/\:/g, '');
+	};
+	
 	jsc.Scriptable.prototype.isStage = function () {
 		return false;
 	};
@@ -485,22 +324,6 @@
 
 	jsc.Scriptable.prototype.getVariable = function (name) {
 		return this.variables.at(name) === undefined ? this.getStage().variables.at(name)[0] : this.variables.at(name)[0];
-	};
-
-	jsc.Scriptable.prototype.changeVariable = function (name, value, relative) {
-		var o = this.getStage().variables;
-		if (this.variables.at(name) !== undefined) {
-			o = this.variables;
-		}
-		o = o.at(name);
-		if (relative) {
-			o[0] = jsc.castNumber(o) + jsc.castNumber(value);
-		} else {
-			o[0] = value;
-		}
-		if (o[1]) {
-			o[1].needsUpdate = true;
-		}
 	};
 	
 	jsc.Scriptable.prototype.getSound = function (sound) {
@@ -557,7 +380,7 @@
 		return this.getStage().getSprite(sprite.toString());
 	};
 
-	jsc.Scriptable.prototype.stopAllSounds = function () {
+	jsc.Scriptable.prototype.stopAllMySounds = function () {
 		for (var i = 0; i < this.sounds.length; i++) {
 			this.sounds[i].stop();
 		}
@@ -842,9 +665,9 @@
 	};
 
 	jsc.Stage.prototype.stopAllSounds = function () {
-		jsc.Stage.uber.stopAllSounds.call(this);
+		jsc.Stage.uber.stopAllMySounds.call(this);
 		for (var i = 0; i < this.sprites.length; i++) {
-			this.sprites[i].stopAllSounds();
+			this.sprites[i].stopAllMySounds();
 		}
 	};
 
@@ -865,7 +688,7 @@
 
 	jsc.Sprite.prototype.initFields = function (fields, version) {
 		jsc.Sprite.uber.initFields.call(this, fields, version);
-		jsc.initFieldsNamed.call(this, ['visibility', 'scalePoint', 'heading', 'rotationStyle'], fields);
+		jsc.initFieldsNamed.call(this, ['visibility', 'scalePoint', 'direction', 'rotationStyle'], fields);
 		if (version == 1) return;
 		jsc.initFieldsNamed.call(this, ['volume', 'tempoBPM', 'draggable'], fields);
 		if (version == 2) return;
@@ -886,14 +709,14 @@
 			return;
 		}
 		var rc = this.costume.rotationCenter;
-		var angle = this.heading.mod(360) * Math.PI / 180;
+		var angle = this.direction.mod(360) * Math.PI / 180;
 		
 		ctx.save();
 		ctx.translate(Math.round(this.position.x), Math.round(this.position.y));
 		if (this.rotationStyle === 'normal') {
 			ctx.rotate(angle);
 		}
-		ctx.scale(this.rotationStyle === 'leftRight' && (this.heading - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x, this.scalePoint.y);
+		ctx.scale(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x, this.scalePoint.y);
 		ctx.translate(-rc.x, -rc.y);
 		var t = this.filters.ghost;
 		if (typeof t !== 'undefined') {
@@ -918,201 +741,6 @@
 		}
 	}
 	
-	jsc.Sprite.prototype.evalCommand = function (command, args) {
-		switch (command) {
-		case 'forward:':
-			var rad = Math.PI/180 * (this.heading + 90);
-			var v = jsc.castNumber(args[0]);
-			return this.setRelativePosition(this.getRelativePosition().add(new jsc.Point(Math.sin(rad) * v, Math.cos(rad) * v)));
-		case 'heading:':
-			return this.heading = (jsc.castNumber(args[0])) - 90;
-		case 'pointTowards:':
-			var coords;
-			if (args[0].toString() === 'mouse') {
-				coords = this.getStage().mouse;
-			} else {
-				var s = this.coerceSprite(args[0]);
-				if (!s) {
-					return;
-				}
-				coords = s.position;
-			}
-			var p = this.position.subtract(coords);
-			return this.heading = Math.atan2(p.x, -p.y) * 180/Math.PI + 90;
-		case 'turnRight:':
-			return this.heading += (jsc.castNumber(args[0]));
-		case 'turnLeft:':
-			return this.heading -= (jsc.castNumber(args[0]));
-		case 'gotoX:y:':
-			return this.setRelativePosition(new jsc.Point(jsc.castNumber(args[0]), jsc.castNumber(args[1])));
-		case 'gotoSpriteOrMouse:':
-			var stage = this.getStage();
-			if (args[0] === null) {
-				return;
-			}
-			if (args[0].toString() === 'mouse') {
-				return this.setRelativePosition(stage.toScratchCoords(stage.mouse));
-			}
-			var sprite = this.coerceSprite(args[0]);
-			if (!sprite) {
-				return;
-			}
-			return this.setRelativePosition(sprite.getRelativePosition());
-		case 'changeXposBy:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x + (jsc.castNumber(args[0])), this.getRelativePosition().y));
-		case 'xpos:':
-			return this.setRelativePosition(new jsc.Point(jsc.castNumber(args[0]), this.getRelativePosition().y));
-		case 'changeYposBy:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, this.getRelativePosition().y + (jsc.castNumber(args[0]))));
-		case 'ypos:':
-			return this.setRelativePosition(new jsc.Point(this.getRelativePosition().x, jsc.castNumber(args[0])));
-		case 'bounceOffEdge':
-			var tb = this.getBoundingBox();
-			var sb = this.getStage().bounds;
-			
-			tb.origin.x = Math.ceil(tb.origin.x);
-			tb.origin.y = Math.ceil(tb.origin.y);
-			tb.corner.x = Math.floor(tb.corner.x);
-			tb.corner.y = Math.floor(tb.corner.y);
-			
-			if (sb.containsRectangle(tb)) {
-				return;
-			}
-			
-			var rad = Math.PI/180 * (this.heading + 90);
-			var cos = Math.cos(rad);
-			var sin = -Math.sin(rad);
-			
-			var dx = 0, dy = 0;
-
-			if (tb.right() > sb.right()) {
-				dx = sb.right() - tb.right();
-				cos = -Math.abs(cos);
-			}
-			if (tb.bottom() > sb.bottom()) {
-				dy = sb.bottom() - tb.bottom();
-				sin = -cos;
-			}
-			if ((tb.left() + dx) < sb.left()) {
-				dx = sb.left() - tb.left();
-				cos = Math.abs(cos);
-			}
-			if ((tb.top() + dy) < sb.top()) {
-				dy = sb.top() - tb.top();
-				sin = -Math.abs(sin);
-			}
-			
-			this.heading = 180/Math.PI * Math.atan2(cos, sin) - 90;
-			
-			return this.setPosition(this.position.add(new jsc.Point(dx, dy)));
-		case 'xpos':
-			return this.getRelativePosition().x;
-		case 'ypos':
-			return this.getRelativePosition().y;
-		case 'heading':
-			return (this.heading + 90 + 179).mod(360) - 179;
-
-		case 'lookLike:':
-			var costume;
-			
-			var index;
-			var cast = jsc.castNumberOrNull(args[0]);
-			if (cast !== null) {
-				index = (Math.round(cast) - 1).mod(this.costumes.length);
-				costume = this.costumes[index];
-			} else {
-				for (var i = 0; i < this.costumes.length; i++) {
-					if (this.costumes[i].name === args[0].toString()) {
-						costume = this.costumes[i];
-						index = i;
-					}
-				}
-			}
-			if (costume) {
-				this.costume = costume;
-				this.costumeIndex = index;
-			}
-			return;
-		case 'nextCostume':
-			this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
-			return this.costume = this.costumes[this.costumeIndex];
-		case 'costumeIndex':
-			return (this.costumeIndex).mod(this.costumes.length - 1) + 1;
-		case 'say:':
-			return console.log(args[0]);
-		case 'changeSizeBy:':
-			var size = ((jsc.castNumber(args[0])) / 100 + Math.max(this.scalePoint.x, this.scalePoint.y));
-			return this.scalePoint = new jsc.Point(size, size);
-		case 'setSizeTo:':
-			var size = (jsc.castNumber(args[0])) / 100;
-			return this.scalePoint = new jsc.Point(size, size);
-		case 'changeStretchBy:':
-			return this.scalePoint.x += (jsc.castNumber(args[0])) / 100;
-		case 'setStretchTo:':
-			return this.scalePoint.x = (jsc.castNumber(args[0])) / 100 * this.scalePoint.y;
-		case 'scale':
-			return Math.round(100 * this.scalePoint.x);
-		case 'show':
-			return this.show();
-		case 'hide':
-			return this.hide();
-		case 'comeToFront':
-			var children = this.getStage().children;
-			return children.unshift(children.splice(children.indexOf(this), 1)[0]);
-		case 'goBackByLayers:':
-			var children = this.getStage().children;
-			var i = children.indexOf(this);
-			var layer = Math.min(i + (parseInt(args[0]) || 0), children.length - 1);
-			children.splice(i, 1)
-			return children.splice(layer, 0, this);
-		
-		case 'touching:':
-			return this.isTouching(args[0]);
-		case 'touchingColor:':
-			return this.isTouchingColor(args[0]);
-		case 'color:sees:':
-			return this.isColorTouchingColor(args[0], args[1]);
-		case 'distanceTo:':
-			var coords;
-			if (args[0].toString() === 'mouse') {
-				coords = this.getStage().mouse;
-			} else {
-				var s = this.coerceSprite(args[0]);
-				if (!s) {
-					return 10000;
-				}
-				coords = s.position;
-			}
-			return this.position.distanceTo(coords);
-		
-		case 'putPenDown':
-			var ctx = this.getStage().penCtx;
-			ctx.beginPath();
-			ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
-			ctx.fillStyle = this.pen.color.toString();
-			ctx.fill();
-			return this.penDown = true;
-		case 'putPenUp':
-			return this.penDown = false;
-		case 'penColor:':
-			return this.pen.color = args[0];
-		case 'changePenSizeBy:':
-			return this.pen.size = Math.max(this.pen.size + jsc.castNumber(args[0]), 1);
-		case 'penSize:':
-			return this.pen.size = Math.max(jsc.castNumber(args[0]), 0);
-		case 'stampCostume':
-			var h = this.hidden;
-			this.hidden = false;
-			var g = this.filters.ghost;
-			this.filters.ghost = 0;
-			this.drawOn(this.getStage().penCtx);
-			this.filters.ghost = g;
-			return this.hidden = h;
-		default:
-			return jsc.Sprite.uber.evalCommand.call(this, command, args);
-		}
-	};
-	
 	jsc.Sprite.prototype.getBoundingBox = function () {
 		var p = this.position;
 		var rc = this.costume.rotationCenter;
@@ -1124,10 +752,10 @@
 		var yp2 = this.costume.extent().y - rc.y;
 		
 		if (this.rotationStyle !== 'normal') {
-			return new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.heading - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
+			return new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
 		}
 		
-		var rad = Math.PI/180 * (this.heading);
+		var rad = Math.PI/180 * (this.direction);
 		
 		var cos = Math.cos(rad);
 		var sin = Math.sin(rad);
@@ -1317,14 +945,6 @@
 	jsc.Sprite.prototype.extent = function () {
 		return new jsc.Point(this.bounds.corner.x - this.bounds.origin.x, this.bounds.corner.y - this.bounds.origin.y);
 	};
-
-	jsc.Sprite.prototype.show = function () {
-		this.hidden = false;
-	};
-
-	jsc.Sprite.prototype.hide = function () {
-		this.hidden = true;
-	};
 	
 	jsc.Sprite.prototype.getAttribute = function (attribute) {
 		var stage = this.getStage();
@@ -1344,7 +964,7 @@
 	};
 	
 	jsc.Sprite.prototype.scratchHeading = function () {
-		return (this.heading + 90 + 179).mod(360) - 179;
+		return (this.direction + 90 + 179).mod(360) - 179;
 	};
 	
 	
@@ -1370,10 +990,107 @@
 			};
 			this.hat[1] = keys[this.hat[1]] || this.hat[1].toUpperCase().charCodeAt(0);
 		}
-		this.wholeScript = this.script = script.slice(1, script.length);
+		this.wholeScript = this.script = this.compile(script.slice(1, script.length));
 		this.done = true;
 	};
 
+	jsc.Thread.prototype.compile = function (script) {
+		if (script === null) {
+			return null;
+		}
+		var self = this.object;
+		var compiled = [];
+		var string = null;
+		var selector;
+		for (var i = 0; i < script.length; i++) {
+			selector = script[i][0];
+			if (this.specialBlocks.indexOf(selector) !== -1) {
+				if (string !== null) {
+					compiled.push(eval(string + '})'));
+				}
+				string = null;
+				compiled.push(this.compileSpecial(script[i]));
+				continue;
+			} else if (string === null) {
+				string = '(function(){';
+			}
+			string += 'self.' + this.object.getCommandFunctionName(selector) + '(';
+			for (var j = 1; j < script[i].length; j++) {
+				string += this.compileArg(script[i][j]);
+				if (j !== script[i].length - 1) {
+					string += ',';
+				}
+			}
+			string += ');';
+		}
+		if (string !== null) {
+			compiled.push(eval(string + '})'));
+		}
+		return compiled;
+	};
+	
+	jsc.Thread.prototype.compileArg = function (arg) {
+		if (typeof arg === 'number') {
+			return arg;
+		}
+		if (typeof arg === 'string') {
+			return '\'' + arg + '\'';
+		}
+		if (arg instanceof jsc.Sprite) {
+			return '\'' + arg.objName + '\'';
+		}
+		if (arg instanceof jsc.Color) {
+			return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
+		}
+		if (!(arg instanceof Array)) {
+			return arg;
+		}
+		var self = this.object;
+		var string = 'self.' + this.object.getReporterFunctionName(arg[0]) + '(';
+		for (var i = 1; i < arg.length; i++) {
+			string += this.compileArg(arg[i]);
+			if (i !== arg.length - 1) {
+				string += ',';
+			}
+		}
+		return string + ')';
+	};
+	
+	jsc.Thread.prototype.compileReporter = function (predicate) {
+		var self = this.object;
+		return eval('(function(){return ' + this.compileArg(predicate) + '})');
+	};
+	
+	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil'];
+	
+	jsc.Thread.prototype.compileSpecial = function (special) {
+		var compiled;
+		switch (special[0]) {
+		case 'wait:elapsed:from:':
+			compiled = [this.compileArg(special[1])];
+			break;
+		case 'doForever':
+			compiled = [this.compile(special[1])];
+			break;
+		case 'doIf':
+			compiled = [this.compileReporter(special[1]), this.compile(special[2])];
+			break;
+		case 'doIfElse':
+			compiled = [this.compileReporter(special[1]), this.compile(special[2]), this.compile(special[3])];
+			break;
+		case 'doUntil':
+			compiled = [this.compileReporter(special[1]), this.compile(special[2])];
+			break;
+		case 'doRepeat':
+			compiled = [this.compileReporter(special[1]), this.compile(special[2])];
+			break;
+		case 'doWaitUntil':
+			compiled = [this.compileReporter(special[1])];
+			break;
+		}
+		return [special[0]].concat(compiled);
+	};
+	
 	jsc.Thread.prototype.start = function () {
 		this.index = 0;
 		this.stack = [];
@@ -1414,12 +1131,17 @@
 	};
 
 	jsc.Thread.prototype.evalCommand = function (block) {
+		if (typeof block === 'function') {
+			block();
+			return;
+		}
+		
 		var selector = block[0];
 
 		switch (selector)
 		{
 		case 'doIf':
-			if (this.evalArg(block[1])) {
+			if (block[1]()) {
 				this.evalCommandList(false, block[2]);
 			}
 			return;
@@ -1452,7 +1174,7 @@
 			return;
 		case 'doRepeat':
 			if (this.temp === null) {
-				this.temp = parseInt(this.evalArg(block[1])) || 0;
+				this.temp = Math.round(jsc.castNumber(block[1]()));
 			}
 			if (this.temp <= 0) {
 				this.evalCommandList(false);
@@ -1477,7 +1199,7 @@
 			this.stop();
 			return;
 		case 'doWaitUntil':
-			if (!this.evalArg(block[1])) {
+			if (!block[1]()) {
 				this.evalCommandList(true);
 			}
 			return;
@@ -1504,13 +1226,6 @@
 			this.evalCommandList(true);
 			return;
 		}
-
-		var args = [];
-		for (var i = 1; i < block.length; i++) {
-			args.push(this.evalArg(block[i]));
-		}
-
-		return this.object.evalCommand(selector, args);
 	};
 
 	jsc.Thread.prototype.evalArg = function (arg) {
