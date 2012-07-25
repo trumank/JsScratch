@@ -1717,14 +1717,14 @@
 			l7 = 0;
 			l8 = valueHighBit;
 			while (l8 > 0) {
-				if (l5 & l8 !== 0) {
+				if ((l5 & l8) !== 0) {
 					l7 += l6;
 				}
 				l6 = l6 >> 1;
 				l8 = l8 >> 1;
 			}
 			l7 += l6;
-			l3 += (l5 & signMask) === 0 ? l7 : -l7
+			l3 += ((l5 & signMask) === 0) ? l7 : -l7
 			l4 += indexTable[l5 & valueMask];
 			l4 = Math.min(Math.max(l4, 0), 88);
 			l3 = Math.min(Math.max(l3, -32768), 32767);
@@ -1740,23 +1740,22 @@
 			while (true) {
 				j4 = j3 - bitPosition;
 				j2 += j4 < 0 ? currentByte >> -j4 : currentByte << j4;
-				if (j4 <= 0) {
+				if (j4 > 0) {
+					j3 -= bitPosition;
+					if (index < soundData.length) {
+						currentByte = soundData[index++];
+						bitPosition = 8;
+					} else {
+						currentByte = 0;
+						bitPosition = 0;
+						return -1;
+					}
+				} else {
+					bitPosition -= j3;
+					currentByte = currentByte & (255 >> (8 - bitPosition));
 					break;
 				}
-				j3 -= bitPosition;
-				if (index < soundData.length) {
-					currentByte = soundData[index++];
-				} else {
-					currentByte = -1;
-				}
-				bitPosition = 8;
-				if (currentByte < 0) {
-					bitPosition = 0;
-					return j2;
-				}
 			}
-			bitPosition -= j3;
-			currentByte = currentByte & 255 >> 8 - bitPosition;
 			return j2;
 		}
 		this.samples = l2;
