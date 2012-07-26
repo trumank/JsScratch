@@ -607,10 +607,6 @@
 
 	jsc.Stage.prototype.initBeforeLoad = function () {
 		jsc.Stage.uber.initBeforeLoad.call(this);
-		this.watchers = [];
-		/*this.watchers = this.children.filter(function (m) {
-			return m instanceof WatcherMorph;
-		});*/
 	};
 
 	jsc.Stage.prototype.drawOn = function (ctx) {
@@ -691,10 +687,6 @@
 			jsc.Stage.uber.step.call(this);
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
-			}
-
-			for (var i = 0; i < this.watchers.length; i++) {
-				this.watchers[i].update();
 			}
 		} while (this.turbo && stopwatch.getElapsed() < 10)
 		
@@ -1557,11 +1549,16 @@
 				return;
 			}
 			
-			var scripts = this.object.getStage().getAllThreads().filter(function (thread) {
-				return thread.hat[0] === 'EventHatMorph' && thread.hat[1].toLowerCase() === self.temp.toLowerCase() && thread.done;
-			});
+			var threads = this.object.getStage().getAllThreads();
 			
-			this.evalCommandList(scripts.length === 0);
+			for (var i = 0; i < threads.length; i++) {
+				if (threads[i].hat[0] === 'EventHatMorph' && threads[i].hat[1].toLowerCase() === self.temp.toLowerCase() && !threads[i].done) {
+					this.evalCommandList(true);
+					return;
+				}
+			}
+			
+			this.evalCommandList(false);
 			return;
 		case 'doIfElse':
 			this.evalCommandList(false, this.evalArg(block[1]) ? block[2] : block[3]);
