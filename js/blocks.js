@@ -190,9 +190,7 @@
 		return this.getVariable(variable.toString());
 	};
 	
-	jsc.Scriptable.prototype.changeVariable = function (name, type, value) {
-		var relative = type === 'changeVar:by:';
-		
+	jsc.Scriptable.prototype.changeVariable = function (name, relative, value) {
 		var o = this.getStage().variables;
 		if (typeof o[name] === 'undefined') {
 			o = this.variables;

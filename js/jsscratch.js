@@ -51,13 +51,20 @@
 
 
 	jsc.castNumber = function (object) {
-		if (typeof object === 'number' || ((object | 0) === object)) {
+		if (typeof object === 'number') {
 			return object;
 		}
 		var string = object.toString();
-		if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
-			return parseFloat(string.match(/^\-?[0-9]+((\.|\,)[0-9]+)?/g)[0].replace(',', '.'));
+		/*if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
+			return Number(string.match(/^\-?[0-9]+((\.|\,)[0-9]+)?/g)[0].replace(',', '.'));
+		}*/
+		
+		var num = Number(string);
+		
+		if (num === num) {
+			return num;
 		}
+		
 		return 0;
 	};
 	
@@ -66,9 +73,16 @@
 			return object;
 		}
 		var string = object.toString();
-		if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
+		/*if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
 			return parseFloat(string.match(/^\-?[0-9]+((\.|\,)[0-9]+)?/g)[0].replace(',', '.'));
+		}*/
+		
+		var num = Number(string);
+		
+		if (num === num) {
+			return num;
 		}
+		
 		return null;
 	};
 	
@@ -220,10 +234,16 @@
 			}
 		}
 
-		var key;
+		var key, list, val, num;
 		if (this.lists) {
 			for (key in this.lists) {
-				this.lists[key] = this.lists[key][9];
+				list = this.lists[key][9];
+				for (var i = 0; i < list.length; i++) {
+					val = list[i];
+					num = jsc.castNumberOrNull(val);
+					list[i] = ((num === null) ? val : num);
+				}
+				this.lists[key] = list;
 			}
 		} else {
 			this.lists = {};
@@ -291,7 +311,7 @@
 			
 			"costumeIndex":"getCostumeIndex",
 			"heading":"getHeading",
-			"heading:":"setHeading",
+			"heading:":"setHeading"
 		};
 		if (special[selector]) {
 			return special[selector];
@@ -318,7 +338,7 @@
 			"|":"or",
 			"&":"and",
 			
-			"\\\\":"and",
+			"\\\\":"and"
 		};
 		if (special[selector]) {
 			return special[selector];
@@ -1032,7 +1052,7 @@
 	};
 	
 	jsc.Watcher.prototype.commandLookup = {
-		"getVar:":"getMyVariable",
+		"getVar:":"getMyVariable"
 	};
 	
 	jsc.Watcher.prototype.updateValue = function () {
@@ -1131,6 +1151,12 @@
 		this.done = true;
 	};
 
+	jsc.Thread.prototype.eval = function (script) {
+		var self = this.object;
+		var c = jsc.castNumber;
+		return eval(script);
+	};
+	
 	jsc.Thread.prototype.compile = function (script) {
 		if (script === null) {
 			return null;
@@ -1143,7 +1169,7 @@
 			selector = script[i][0];
 			if (this.specialBlocks.indexOf(selector) !== -1) {
 				if (string !== null) {
-					compiled.push(eval(string + '})'));
+					compiled.push(this.eval(string + '})'));
 				}
 				string = null;
 				compiled.push(this.compileSpecial(script[i]));
@@ -1151,26 +1177,46 @@
 			} else if (string === null) {
 				string = '(function(){';
 			}
-			string += 'self.' + this.object.getCommandFunctionName(selector) + '(';
-			for (var j = 1; j < script[i].length; j++) {
-				string += this.compileArg(script[i][j]);
-				if (j !== script[i].length - 1) {
-					string += ',';
+			
+			var special = this.compileSpecialCommand(script[i]);
+			if (special !== null) {
+				string += special;
+			} else {
+				string += 'self.' + this.object.getCommandFunctionName(selector) + '(';
+				for (var j = 1; j < script[i].length; j++) {
+					string += this.compileArg(script[i][j]);
+					if (j !== script[i].length - 1) {
+						string += ',';
+					}
 				}
+				string += ');';
 			}
-			string += ');';
 		}
 		if (string !== null) {
-			compiled.push(eval(string + '})'));
+			compiled.push(this.eval(string + '})'));
 		}
 		return compiled;
 	};
 	
-	jsc.Thread.prototype.compileArg = function (arg) {
+	jsc.Thread.prototype.compileSpecialCommand = function (command) {
+		switch (command[0]) {
+		case 'changeVariable':
+			return 'self.changeVariable(' + this.compileArg(command[1]) + ',' + ((command[2] === 'changeVar:by:') ? 'true' : 'false') + ',' + this.compileArg(command[3], true) + ');';
+		}
+		return null;
+	};
+	
+	jsc.Thread.prototype.compileArg = function (arg, preferNumber) {
 		if (typeof arg === 'number') {
 			return arg;
 		}
 		if (typeof arg === 'string') {
+			if (preferNumber) {
+				var num = jsc.castNumber(arg);
+				if (num !== null) {
+					return num;
+				}
+			}
 			return '\'' + this.escapeString(arg) + '\'';
 		}
 		if (arg instanceof jsc.Sprite) {
@@ -1182,7 +1228,12 @@
 		if (!(arg instanceof Array)) {
 			return arg;
 		}
-		var self = this.object;
+		
+		var special = this.compileSpecialArg(arg);
+		if (special !== null) {
+			return special;
+		}
+		
 		var string = 'self.' + this.object.getReporterFunctionName(arg[0]) + '(';
 		for (var i = 1; i < arg.length; i++) {
 			string += this.compileArg(arg[i]);
@@ -1193,13 +1244,58 @@
 		return string + ')';
 	};
 	
+	jsc.Thread.prototype.compileSpecialArg = function (arg) {
+		switch (arg[0]) {
+		case '+':
+			return '(c(' + this.compileArg(arg[1]) + ') + c(' + this.compileArg(arg[2]) + '))';
+		case '-':
+			return '(c(' + this.compileArg(arg[1]) + ') - c(' + this.compileArg(arg[2]) + '))';
+		case '*':
+			return '(c(' + this.compileArg(arg[1]) + ') * c(' + this.compileArg(arg[2]) + '))';
+		case '/':
+			return '(c(' + this.compileArg(arg[1]) + ') / c(' + this.compileArg(arg[2]) + '))';
+			
+		case 'computeFunction:of:':
+			var f = arg[1];
+			var v = this.compileArg(arg[2], true);
+			
+			switch (f.toString().toLowerCase()) {
+			case 'abs':
+				return 'Math.abs(' + v + ')';
+			case 'sqrt':
+				return 'Math.sqrt(' + v + ')';
+			case 'sin':
+				return 'Math.sin(Math.PI/180*' + v + ')';
+			case 'cos':
+				return 'Math.cos(Math.PI/180*' + v + ')';
+			case 'tan':
+				return 'Math.tan(Math.PI/180*' + v + ')';
+			case 'asin':
+				return '180/Math.PI*Math.asin(Math.max(-1,Math.min(1,' + v + ')))';
+			case 'acos':
+				return '180/Math.PI*Math.acos(Math.max(-1,Math.min(1,' + v + ')))';
+			case 'atan':
+				return '180/Math.PI*Math.atan(' + v + ')';
+			case 'ln':
+				return 'Math.log(' + v + ')';
+			case 'log':
+				return 'Math.log(' + v + ')';
+			case 'e ^':
+				return 'Math.pow(Math.E,' + v + ')';
+			case '10 ^':
+				return 'Math.pow(10,' + v + ')';
+			}
+		}
+		return null;
+	};
+	
 	jsc.Thread.prototype.escapeString = function (string) {
 		return string.replace(/[\'\"\\]/g, "\\$&");
 	};
 	
 	jsc.Thread.prototype.compileReporter = function (predicate) {
 		var self = this.object;
-		return eval('(function(){return ' + this.compileArg(predicate) + '})');
+		return this.eval('(function(){return ' + this.compileArg(predicate) + '})');
 	};
 	
 	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn', 'doPlaySoundAndWait'];
@@ -1324,8 +1420,6 @@
 					return;
 				}
 			}
-			
-			this.evalCommandList(false);
 			return;
 		case 'doIfElse':
 			this.evalCommandList(false, block[1]() ? block[2] : block[3]);
@@ -1335,7 +1429,6 @@
 				this.temp = Math.round(jsc.castNumber(block[1]()));
 			}
 			if (this.temp <= 0) {
-				this.evalCommandList(false);
 				return;
 			}
 
@@ -1357,7 +1450,9 @@
 			this.stop();
 			return;
 		case 'doWaitUntil':
-			this.evalCommandList(!block[1]());
+			if (!block[1]()) {
+				this.evalCommandList(true);
+			}
 			return;
 		case 'wait:elapsed:from:':
 			if (!this.timer) {
@@ -1366,7 +1461,6 @@
 			} else if (this.timer.getElapsed() < jsc.castNumber(block[1]()) * 1000) {
 				this.evalCommandList(true);
 			}
-			this.evalCommandList(false);
 			return;
 		case 'glideSecs:toX:y:elapsed:from:':
 			if (!this.temp) {
@@ -1426,15 +1520,15 @@
 	}
 
 	jsc.Stopwatch.prototype.init = function () {
-		this.startTime = new Date().getTime();
+		this.startTime = Date.now();
 	};
 
 	jsc.Stopwatch.prototype.reset = function () {
-		this.startTime = new Date().getTime();
+		this.startTime = Date.now();
 	};
 
 	jsc.Stopwatch.prototype.getElapsed = function () {
-		return new Date().getTime() - this.startTime;
+		return Date.now() - this.startTime;
 	};
 
 
