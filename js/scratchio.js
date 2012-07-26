@@ -208,7 +208,7 @@
 			case 24:
 			case 25:
 				for (var j = 0; j < obj[1].length; j += 2)
-					newObj[i].put(os[j], os[j + 1]);
+					newObj[i][os[j]] = os[j + 1];
 				break;
 			case 32:
 				newObj[i].x = os[0];
@@ -262,7 +262,7 @@
 			return [];
 		case 23:
 		case 24:
-			return new jsc.Dictionary();
+			return {};
 		case 32:
 			return new jsc.Point();
 		case 33:
@@ -276,8 +276,8 @@
 			return new jsc.Sprite();
 		case 125:
 			return new jsc.Stage();
-		//case 155:
-		//	return new Watcher();
+		case 155:
+			return new jsc.Watcher();
 		case 162:
 			return new jsc.ImageMedia();
 		case 164:

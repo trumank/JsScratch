@@ -27,8 +27,8 @@
 		this.info = objectStream.nextObject();
 		this.stage = objectStream.nextObject();
 		this.stage.canvas = this.canvas;
-		if (this.info.at('penTrails')) {
-			this.stage.penCanvas = this.info.at('penTrails').getImage();
+		if (this.info['penTrails']) {
+			this.stage.penCanvas = this.info['penTrails'].getImage();
 		}
 		this.stage.setup();
 	};
@@ -51,7 +51,7 @@
 
 
 	jsc.castNumber = function (object) {
-		if (typeof object === 'number') {
+		if (typeof object === 'number' || ((object | 0) === object)) {
 			return object;
 		}
 		var string = object.toString();
@@ -114,14 +114,33 @@
 		}
 		return 'data:audio/wav;base64,' + btoa(string);
 	};
-
-	/*window.requestAnimationFrame = function (callback) {//window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
-		setTimeout(callback, 1000 / 40);
-	};*/
 	
 	window.addEventListener('error', function (e) {
 		alert('Error:\n' + e.message + (e.lineno ? ('\nLine number: ' + e.lineno) : '') + (e.filename && e.filename !== 'undefined' ? ('\nFile: ' + e.filename) : ''));
 	}, false);
+	
+	if (!window.btoa) {
+		window.btoa = function btoa2(str) {
+			var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+			var encoded = [];
+			var c = 0;
+			while (c < str.length) {
+				var b0 = str.charCodeAt(c++);
+				var b1 = str.charCodeAt(c++);
+				var b2 = str.charCodeAt(c++);
+				var buf = (b0 << 16) + ((b1 || 0) << 8) + (b2 || 0);
+				var i0 = (buf & (63 << 18)) >> 18;
+				var i1 = (buf & (63 << 12)) >> 12;
+				var i2 = isNaN(b1) ? 64 : (buf & (63 << 6)) >> 6;
+				var i3 = isNaN(b2) ? 64 : (buf & 63);
+				encoded[encoded.length] = chars.charAt(i0);
+				encoded[encoded.length] = chars.charAt(i1);
+				encoded[encoded.length] = chars.charAt(i2);
+				encoded[encoded.length] = chars.charAt(i3);
+			}
+			return encoded.join('');
+		};
+	}
 	
 	jsc.createPlayer = function (url, autoplay) {
 		var container = document.createElement('div');
@@ -204,16 +223,10 @@
 		var key;
 		if (this.lists) {
 			for (key in this.lists.obj) {
-				this.lists.put(key, this.lists.at(key)[9]);
+				this.lists.put(key, this.lists[key][9]);
 			}
 		} else {
 			this.lists = [];
-		}
-		
-		for (key in this.variables.obj) {
-			if (!(this.variables.at(key) instanceof Array)) {
-				this.variables.put(key, [this.variables.at(key)]);
-			}
 		}
 		
 		this.costumes = this.media.filter(function (e) {
@@ -313,8 +326,8 @@
 			var s = this.coerceSprite(args[1]);
 			if (s) {
 				var a = args[0].toString();
-				if (typeof s.variables.obj[a] !== 'undefined') {
-					return s.variables.obj[a];
+				if (typeof s.variables[a] !== 'undefined') {
+					return s.variables[a];
 				}
 				return s.getAttribute(a);
 			}
@@ -484,22 +497,23 @@
 	};
 
 	jsc.Scriptable.prototype.getVariable = function (name) {
-		return this.variables.at(name) === undefined ? this.getStage().variables.at(name)[0] : this.variables.at(name)[0];
+		return this.variables[name] === undefined ? this.getStage().variables[name] : this.variables[name];
+	};
+
+	jsc.Scriptable.prototype.getMyVariable = function (name) {
+		return this.variables[name];
 	};
 
 	jsc.Scriptable.prototype.changeVariable = function (name, value, relative) {
 		var o = this.getStage().variables;
-		if (this.variables.at(name) !== undefined) {
+		if (typeof o[name] === 'undefined') {
 			o = this.variables;
 		}
-		o = o.at(name);
+		
 		if (relative) {
-			o[0] = jsc.castNumber(o) + jsc.castNumber(value);
+			o[name] = jsc.castNumber(o[name]) + jsc.castNumber(value);
 		} else {
-			o[0] = value;
-		}
-		if (o[1]) {
-			o[1].needsUpdate = true;
+			o[name] = value;
 		}
 	};
 	
@@ -516,17 +530,9 @@
 		}
 		return null;
 	};
-	
-	jsc.Scriptable.prototype.addWatcher = function (variable, watcher) {
-		if (this.variables.at(variable) instanceof Array) {
-			this.variables.at(variable).push(watcher);
-		} else {
-			this.variables.put(variable, [this.variables.at(variable), watcher]);
-		}
-	};
 
 	jsc.Scriptable.prototype.getList = function (name) {
-		return this.lists.at(name) === undefined ? this.getStage().lists.at(name) : this.lists.at(name);
+		return this.lists[name] === undefined ? this.getStage().lists[name] : this.lists[name];
 	};
 	
 	jsc.Scriptable.prototype.toListLine = function (arg, list) {
@@ -1348,7 +1354,117 @@
 	};
 	
 	
-	// jsc.Thread /////////////////////////////////////////////////
+	// Watcher ////////////////////////////////////////////
+	jsc.Watcher = function () {
+		this.init();
+	}
+	
+	jsc.Watcher.prototype.constructor = jsc.Watcher;
+	
+	jsc.Watcher.prototype.init = function () {
+		
+	};
+	
+	jsc.Watcher.prototype.initFields = function (fields) {
+		this.fields = fields;
+	};
+	
+	jsc.Watcher.prototype.initBeforeLoad = function () {
+		jsc.initFieldsNamed.call(this, ['bounds', 'parent'], this.fields);
+		this.mode = 0;
+		if (this.fields.fields[19]) {
+			this.mode = 1;
+		}
+		if (this.fields.fields[16] !== null) {
+			this.mode = 2;
+		}
+		this.sliderMin = this.fields.fields[20];
+		this.sliderMax = this.fields.fields[21];
+		
+		this.color = this.fields.fields[15][3];
+		
+		this.label = this.fields.fields[13][8];
+		
+		this.object = this.fields.fields[14][10];
+		
+		this.command = this.commandLookup[this.fields.fields[14][11]];
+		this.arg = this.fields.fields[14][13];
+		
+		this.value = 'watcher';
+	};
+	
+	jsc.Watcher.prototype.commandLookup = {
+		"getVar:":"getMyVariable",
+	};
+	
+	jsc.Watcher.prototype.updateValue = function () {
+		this.value = this.object[this.command](this.arg);
+	};
+	
+	jsc.Watcher.prototype.drawOn = function (ctx) {
+		this.updateValue();
+		ctx.font = 'bold 8pt Verdana';
+		var w = ctx.measureText(this.label).width + 30;
+		
+		ctx.font = '8pt Verdana';
+		w += Math.max(ctx.measureText(this.value).width, 30);
+		
+		this.bounds.corner.x = this.bounds.origin.x + w;
+		
+		
+		var x1 = this.bounds.origin.x + 0.5;
+		var y1 = this.bounds.origin.y + 0.5;
+		var x2 = this.bounds.corner.x + 0.5;
+		var y2 = this.bounds.corner.y + 0.5;
+		
+		var th = 21;
+		
+		var r = 7;
+		
+		this.drawRoundedRect(ctx, x1, y1, x2, y2, r);
+		ctx.fillStyle = 'rgba(193, 196, 199, 255)';
+		ctx.fill();
+		ctx.strokeStyle = 'rgba(148, 145, 145, 255)';
+		ctx.stroke();
+		
+		x1 += 5;
+		
+		ctx.fillStyle = 'black';
+		ctx.font = 'bold 8pt Verdana';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(this.label, x1, y1 + th / 2);
+		
+		x1 += ctx.measureText(this.label).width + 5;
+		
+		r = 4;
+		
+		this.drawRoundedRect(ctx, x1, y1 + 2, x2 - 4, y1 + th - 2, r);
+		ctx.fillStyle = this.color.toString();
+		ctx.fill();
+		ctx.strokeStyle = 'white';
+		ctx.stroke();
+		
+		ctx.fillStyle = 'white';
+		ctx.font = '8pt Verdana';
+		w = ctx.measureText(this.value).width;
+		ctx.fillText(this.value, x1 + ((x2 - x1 - 4) / 2 - (w / 2)), y1 + th / 2);
+	};
+	
+	jsc.Watcher.prototype.drawRoundedRect = function (ctx, x1, y1, x2, y2, r) {
+		ctx.beginPath();
+		ctx.moveTo(x1 + r, y1);
+		ctx.arcTo(x2, y1, x2, y2, r);
+		ctx.lineTo(x2, y2 - r);
+		ctx.arcTo(x2, y2, x1, y2, r);
+		ctx.lineTo(x1 + r, y2);
+		ctx.arcTo(x1, y2, x1, y1, r);
+		ctx.lineTo(x1, y1 + r);
+		ctx.arcTo(x1, y1, x2, y1, r);
+		ctx.closePath();
+	};
+	
+	
+	// Thread /////////////////////////////////////////////////
 	jsc.Thread = function (object, script) {
 		this.init(object, script);
 	}
