@@ -877,7 +877,6 @@
 		this.pen = {};
 		this.pen.color = new jsc.Color(0, 0, 255);
 		this.pen.size = 1;
-		this.colorCache = {};
 	};
 
 	jsc.Sprite.prototype.drawOn = function (ctx, debug) {
@@ -1283,10 +1282,10 @@
 		
 		var cs = color1.toString();
 		
-		var cc = this.colorCache[cs];
+		var cc = this.costume.colorCache[cs];
 		
 		if (!cc) {
-			cc = this.colorCache[cs] = [];
+			cc = this.costume.colorCache[cs] = [];
 			var f = false;
 			for (var i = 0; i < s.length; i += 4) {
 				if (t[i] === r1 && t[i + 1] === g1 && t[i + 2] === b1 && t[i + 3] > 0) {
@@ -1720,7 +1719,7 @@
 
 	// ImageMedia /////////////////////////////////////////////
 	jsc.ImageMedia = function () {
-
+		this.colorCache = {};
 	}
 
 	jsc.ImageMedia.prototype = new jsc.ScratchMedia();
