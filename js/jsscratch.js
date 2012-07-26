@@ -877,6 +877,7 @@
 		this.pen = {};
 		this.pen.color = new jsc.Color(0, 0, 255);
 		this.pen.size = 1;
+		this.colorCache = {};
 	};
 
 	jsc.Sprite.prototype.drawOn = function (ctx, debug) {
@@ -1280,7 +1281,27 @@
 		var g2 = color2.g;
 		var b2 = color2.b;
 		
-		for (var i = 0; i < s.length; i += 4) {
+		var cs = color1.toString();
+		
+		var cc = this.colorCache[cs];
+		
+		if (!cc) {
+			cc = this.colorCache[cs] = [];
+			var f = false;
+			for (var i = 0; i < s.length; i += 4) {
+				if (t[i] === r1 && t[i + 1] === g1 && t[i + 2] === b1 && t[i + 3] > 0) {
+					cc.push(i);
+					if (s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
+						f = true;
+					}
+				}
+			}
+			return f;
+		}
+		
+		var i;
+		for (var j = 0; j < cc.length; j++) {
+			i = cc[j];
 			if (t[i] === r1 && t[i + 1] === g1 && t[i + 2] === b1 && t[i + 3] > 0 && s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
 				return true;
 			}
