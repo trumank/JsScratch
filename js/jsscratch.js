@@ -270,9 +270,7 @@
 
 	jsc.Scriptable.prototype.getCommandFunctionName = function (selector) {
 		var special = {
-			"xpos":"getXPos",
 			"xpos:":"setXPos",
-			"ypos":"getYPos",
 			"ypos:":"setYPos",
 			
 			"broadcast:":"scratchBroadcast",
@@ -290,6 +288,9 @@
 
 	jsc.Scriptable.prototype.getReporterFunctionName = function (selector) {
 		var special = {
+			"xpos":"getXPos",
+			"ypos":"getYPos",
+			
 			"=":"equals",
 			">":"greatorThan",
 			"<":"lessThan",
@@ -1061,7 +1062,7 @@
 		return eval('(function(){return ' + this.compileArg(predicate) + '})');
 	};
 	
-	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil'];
+	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn'];
 	
 	jsc.Thread.prototype.compileSpecial = function (special) {
 		var compiled;
@@ -1086,6 +1087,15 @@
 			break;
 		case 'doWaitUntil':
 			compiled = [this.compileReporter(special[1])];
+			break;
+		case 'doBroadcastAndWait':
+			compiled = [this.compileReporter(special[1])];
+			break;
+		case 'doForeverIf':
+			compiled = [this.compileReporter(special[1]), this.compile(special[2])];
+			break;
+		case 'doForeverIf':
+			compiled = [];
 			break;
 		}
 		return [special[0]].concat(compiled);
@@ -1157,7 +1167,7 @@
 		case 'doBroadcastAndWait':
 			var self = this;
 			if (this.temp === null) {
-				this.temp = this.evalArg(block[1]).toString();
+				this.temp = block[1]().toString();
 				this.object.getStage().addBroadcastToQueue(this.temp);
 				this.evalCommandList(true);
 				return;
@@ -1170,7 +1180,7 @@
 			this.evalCommandList(scripts.length === 0);
 			return;
 		case 'doIfElse':
-			this.evalCommandList(false, this.evalArg(block[1]) ? block[2] : block[3]);
+			this.evalCommandList(false, block[1]() ? block[2] : block[3]);
 			return;
 		case 'doRepeat':
 			if (this.temp === null) {
@@ -1193,7 +1203,7 @@
 			this.evalCommandList(true, block[1]);
 			return;
 		case 'doForeverIf':
-			this.evalCommandList(true, this.evalArg(block[1]) ? block[2] : null);
+			this.evalCommandList(true, block[1]() ? block[2] : null);
 			return;
 		case 'doReturn':
 			this.stop();
