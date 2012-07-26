@@ -332,6 +332,35 @@
 	};
 	
 	
+	// STAGE //////////////////////////////////////////////
+	
+	// LOOKS ////////////////
+	jsc.Stage.prototype.showBackground = function (background) {
+		var costume;
+		
+		var index = jsc.castNumber(background) - 1;
+		if (index >= 0 && index < this.costumes.length) {
+			costume = this.costumes[index];
+		} else {
+			for (var i = 0; i < this.costumes.length; i++) {
+				if (this.costumes[i].name.toLowerCase() === background.toLowerCase()) {
+					costume = this.costumes[i];
+					index = i;
+				}
+			}
+		}
+		if (costume) {
+			this.costume = costume;
+			this.costumeIndex = index;
+		};
+	};
+	
+	jsc.Stage.prototype.nextBackground = function () {
+		this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
+		return this.costume = this.costumes[this.costumeIndex];
+	};
+	
+	
 	// SPRITES ////////////////////////////////////////////
 	
 	// MOTION ///////////////

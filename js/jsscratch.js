@@ -308,9 +308,7 @@
 			"heading:":"setHeading",
 			
 			"broadcast:":"scratchBroadcast",
-			"stopAll":"stopAllScripts",
-			
-			"costumeIndex":"getCostumeIndex"
+			"stopAll":"stopAllScripts"
 		};
 		if (special[selector]) {
 			return special[selector];
@@ -323,6 +321,8 @@
 			"xpos":"getXPos",
 			"ypos":"getYPos",
 			"heading":"getHeading",
+			
+			"costumeIndex":"getCostumeIndex",
 			
 			"timer":"getTimer",
 			
@@ -572,35 +572,6 @@
 			threads = threads.concat(this.sprites[i].threads);
 		}
 		return threads;
-	};
-	
-	jsc.Stage.prototype.evalCommand = function (command, args) {
-		switch (command) {
-		case 'showBackground:':
-			var costume;
-			
-			var index = (parseInt(args[0]) || 0) - 1;
-			if (index >= 0 && index < this.costumes.length) {
-				costume = this.costumes[index];
-			} else {
-				for (var i = 0; i < this.costumes.length; i++) {
-					if (this.costumes[i].name.toLowerCase() === args[0].toLowerCase()) {
-						costume = this.costumes[i];
-						index = i;
-					}
-				}
-			}
-			if (costume) {
-				this.costume = costume;
-				this.costumeIndex = index;
-			}
-			return;
-		case 'nextBackground':
-			this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
-			return this.costume = this.costumes[this.costumeIndex];
-		default:
-			return jsc.Stage.uber.evalCommand.call(this, command, args);
-		}
 	};
 
 	jsc.Stage.prototype.addBroadcastToQueue = function (broadcast) {
@@ -1298,7 +1269,7 @@
 		return this.eval('(function(){return ' + this.compileArg(predicate) + '})');
 	};
 	
-	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn', 'doPlaySoundAndWait'];
+	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn', 'doPlaySoundAndWait', 'glideSecs:toX:y:elapsed:from:'];
 	
 	jsc.Thread.prototype.compileSpecial = function (special) {
 		var compiled;
@@ -1335,6 +1306,9 @@
 			break;
 		case 'doPlaySoundAndWait':
 			compiled = [this.compileReporter(special[1])];
+			break;
+		case 'glideSecs:toX:y:elapsed:from:':
+			compiled = [this.compileReporter(special[1]), this.compileReporter(special[2]), this.compileReporter(special[3])];
 			break;
 		}
 		return [special[0]].concat(compiled);
@@ -1477,7 +1451,7 @@
 				this.object.position = this.temp[0].subtract(this.temp[1]).multiplyBy(this.timer.getElapsed() / -1000 / this.temp[2]).add(this.temp[0]);
 			} else {
 				this.object.position = this.temp[1];
-				this.evalCommandList(false);
+				this.reset();
 				return;
 			}
 			this.evalCommandList(true);
