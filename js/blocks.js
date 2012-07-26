@@ -364,7 +364,7 @@
 		this.direction += (jsc.castNumber(angle));
 	};
 	
-	jsc.Sprite.prototype.turnLeft = function (object) {
+	jsc.Sprite.prototype.turnLeft = function (angle) {
 		this.direction -= (jsc.castNumber(angle));
 	};
 	

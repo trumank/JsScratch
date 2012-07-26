@@ -305,13 +305,12 @@
 		var special = {
 			"xpos:":"setXPos",
 			"ypos:":"setYPos",
+			"heading:":"setHeading",
 			
 			"broadcast:":"scratchBroadcast",
 			"stopAll":"stopAllScripts",
 			
-			"costumeIndex":"getCostumeIndex",
-			"heading":"getHeading",
-			"heading:":"setHeading"
+			"costumeIndex":"getCostumeIndex"
 		};
 		if (special[selector]) {
 			return special[selector];
@@ -323,6 +322,7 @@
 		var special = {
 			"xpos":"getXPos",
 			"ypos":"getYPos",
+			"heading":"getHeading",
 			
 			"timer":"getTimer",
 			
@@ -1401,7 +1401,11 @@
 				this.evalCommandList(true);
 				return;
 			}
-			this.evalCommandList(this.temp.playing);
+			if (this.temp.playing) {
+				this.evalCommandList(true);
+			} else {
+				this.reset();
+			}
 			return;
 		case 'doBroadcastAndWait':
 			var self = this;
@@ -1420,6 +1424,7 @@
 					return;
 				}
 			}
+			this.reset();
 			return;
 		case 'doIfElse':
 			this.evalCommandList(false, block[1]() ? block[2] : block[3]);
@@ -1429,6 +1434,7 @@
 				this.temp = Math.round(jsc.castNumber(block[1]()));
 			}
 			if (this.temp <= 0) {
+				this.reset();
 				return;
 			}
 
@@ -1461,6 +1467,7 @@
 			} else if (this.timer.getElapsed() < jsc.castNumber(block[1]()) * 1000) {
 				this.evalCommandList(true);
 			}
+			this.reset();
 			return;
 		case 'glideSecs:toX:y:elapsed:from:':
 			if (!this.temp) {
@@ -1489,6 +1496,11 @@
 		this.pushState();
 		this.script = commands || [];
 		this.index = -1;
+		this.timer = null;
+		this.temp = null;
+	};
+
+	jsc.Thread.prototype.reset = function () {
 		this.timer = null;
 		this.temp = null;
 	};
