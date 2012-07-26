@@ -1302,7 +1302,7 @@
 		var i;
 		for (var j = 0; j < cc.length; j++) {
 			i = cc[j];
-			if (t[i] === r1 && t[i + 1] === g1 && t[i + 2] === b1 && t[i + 3] > 0 && s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
+			if (s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
 				return true;
 			}
 		}
