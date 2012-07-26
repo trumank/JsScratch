@@ -27,8 +27,8 @@
 		this.info = objectStream.nextObject();
 		this.stage = objectStream.nextObject();
 		this.stage.canvas = this.canvas;
-		if (this.info.at('penTrails')) {
-			this.stage.penCanvas = this.info.at('penTrails').getImage();
+		if (this.info['penTrails']) {
+			this.stage.penCanvas = this.info['penTrails'].getImage();
 		}
 		this.stage.setup();
 	};
@@ -51,7 +51,7 @@
 
 
 	jsc.castNumber = function (object) {
-		if (typeof object === 'number') {
+		if (typeof object === 'number' || ((object | 0) === object)) {
 			return object;
 		}
 		var string = object.toString();
@@ -114,14 +114,33 @@
 		}
 		return 'data:audio/wav;base64,' + btoa(string);
 	};
-
-	/*window.requestAnimationFrame = function (callback) {//window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
-		setTimeout(callback, 1000 / 40);
-	};*/
 	
 	/*window.addEventListener('error', function (e) {
 		alert('Error:\n' + e.message + (e.lineno ? ('\nLine number: ' + e.lineno) : '') + (e.filename && e.filename !== 'undefined' ? ('\nFile: ' + e.filename) : ''));
 	}, false);*/
+	
+	if (!window.btoa) {
+		window.btoa = function btoa2(str) {
+			var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+			var encoded = [];
+			var c = 0;
+			while (c < str.length) {
+				var b0 = str.charCodeAt(c++);
+				var b1 = str.charCodeAt(c++);
+				var b2 = str.charCodeAt(c++);
+				var buf = (b0 << 16) + ((b1 || 0) << 8) + (b2 || 0);
+				var i0 = (buf & (63 << 18)) >> 18;
+				var i1 = (buf & (63 << 12)) >> 12;
+				var i2 = isNaN(b1) ? 64 : (buf & (63 << 6)) >> 6;
+				var i3 = isNaN(b2) ? 64 : (buf & 63);
+				encoded[encoded.length] = chars.charAt(i0);
+				encoded[encoded.length] = chars.charAt(i1);
+				encoded[encoded.length] = chars.charAt(i2);
+				encoded[encoded.length] = chars.charAt(i3);
+			}
+			return encoded.join('');
+		};
+	}
 	
 	jsc.createPlayer = function (url, autoplay) {
 		var container = document.createElement('div');
@@ -203,17 +222,11 @@
 
 		var key;
 		if (this.lists) {
-			for (key in this.lists.obj) {
-				this.lists.put(key, this.lists.at(key)[9]);
+			for (key in this.lists) {
+				this.lists[key] = this.lists[key][9];
 			}
 		} else {
-			this.lists = [];
-		}
-		
-		for (key in this.variables.obj) {
-			if (!(this.variables.at(key) instanceof Array)) {
-				this.variables.put(key, [this.variables.at(key)]);
-			}
+			this.lists = {};
 		}
 		
 		this.costumes = this.media.filter(function (e) {
@@ -291,6 +304,8 @@
 			"xpos":"getXPos",
 			"ypos":"getYPos",
 			
+			"timer":"getTimer",
+			
 			"=":"equals",
 			">":"greatorThan",
 			"<":"lessThan",
@@ -324,7 +339,11 @@
 	};
 
 	jsc.Scriptable.prototype.getVariable = function (name) {
-		return this.variables.at(name) === undefined ? this.getStage().variables.at(name)[0] : this.variables.at(name)[0];
+		return (typeof this.variables[name] === 'undefined') ? this.getStage().variables[name] : this.variables[name];
+	};
+
+	jsc.Scriptable.prototype.getMyVariable = function (name) {
+		return this.variables[name];
 	};
 	
 	jsc.Scriptable.prototype.getSound = function (sound) {
@@ -340,17 +359,9 @@
 		}
 		return null;
 	};
-	
-	jsc.Scriptable.prototype.addWatcher = function (variable, watcher) {
-		if (this.variables.at(variable) instanceof Array) {
-			this.variables.at(variable).push(watcher);
-		} else {
-			this.variables.put(variable, [this.variables.at(variable), watcher]);
-		}
-	};
 
 	jsc.Scriptable.prototype.getList = function (name) {
-		return this.lists.at(name) === undefined ? this.getStage().lists.at(name) : this.lists.at(name);
+		return (typeof this.lists[name] === 'undefined') ? this.getStage().lists[name] : this.lists[name];
 	};
 	
 	jsc.Scriptable.prototype.toListLine = function (arg, list) {
@@ -425,10 +436,6 @@
 
 	jsc.Stage.prototype.initBeforeLoad = function () {
 		jsc.Stage.uber.initBeforeLoad.call(this);
-		this.watchers = [];
-		/*this.watchers = this.children.filter(function (m) {
-			return m instanceof WatcherMorph;
-		});*/
 	};
 
 	jsc.Stage.prototype.drawOn = function (ctx) {
@@ -509,10 +516,6 @@
 			jsc.Stage.uber.step.call(this);
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
-			}
-
-			for (var i = 0; i < this.watchers.length; i++) {
-				this.watchers[i].update();
 			}
 		} while (this.turbo && stopwatch.getElapsed() < 10)
 		
@@ -911,8 +914,28 @@
 		var g2 = color2.g;
 		var b2 = color2.b;
 		
-		for (var i = 0; i < s.length; i += 4) {
-			if (t[i] === r1 && t[i + 1] === g1 && t[i + 2] === b1 && t[i + 3] > 0 && s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
+		var cs = color1.toString();
+		
+		var cc = this.costume.colorCache[cs];
+		
+		if (!cc) {
+			cc = this.costume.colorCache[cs] = [];
+			var f = false;
+			for (var i = 0; i < s.length; i += 4) {
+				if (t[i] === r1 && t[i + 1] === g1 && t[i + 2] === b1 && t[i + 3] > 0) {
+					cc.push(i);
+					if (s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
+						f = true;
+					}
+				}
+			}
+			return f;
+		}
+		
+		var i;
+		for (var j = 0; j < cc.length; j++) {
+			i = cc[j];
+			if (s[i] === r2 && s[i + 1] === g2 && s[i + 2] === b2 && s[i + 3] > 0) {
 				return true;
 			}
 		}
@@ -969,7 +992,120 @@
 	};
 	
 	
-	// jsc.Thread /////////////////////////////////////////////////
+	// Watcher ////////////////////////////////////////////
+	jsc.Watcher = function () {
+		this.init();
+	}
+	
+	jsc.Watcher.prototype.constructor = jsc.Watcher;
+	
+	jsc.Watcher.prototype.init = function () {
+		this.hidden = false;
+	};
+	
+	jsc.Watcher.prototype.initFields = function (fields) {
+		this.fields = fields;
+	};
+	
+	jsc.Watcher.prototype.initBeforeLoad = function () {
+		jsc.initFieldsNamed.call(this, ['bounds', 'parent'], this.fields);
+		this.mode = 0;
+		if (this.fields.fields[19]) {
+			this.mode = 1;
+		}
+		if (this.fields.fields[16] !== null) {
+			this.mode = 2;
+		}
+		this.sliderMin = this.fields.fields[20];
+		this.sliderMax = this.fields.fields[21];
+		
+		this.color = this.fields.fields[15][3];
+		
+		this.label = this.fields.fields[13][8];
+		
+		this.object = this.fields.fields[14][10];
+		
+		this.command = this.commandLookup[this.fields.fields[14][11]];
+		this.arg = this.fields.fields[14][13];
+		
+		this.value = 'watcher';
+	};
+	
+	jsc.Watcher.prototype.commandLookup = {
+		"getVar:":"getMyVariable",
+	};
+	
+	jsc.Watcher.prototype.updateValue = function () {
+		this.value = this.object[this.command](this.arg);
+	};
+	
+	jsc.Watcher.prototype.drawOn = function (ctx) {
+		if (this.hidden) {
+			return;
+		}
+		this.updateValue();
+		ctx.font = 'bold 8pt Verdana';
+		var w = ctx.measureText(this.label).width + 30;
+		
+		ctx.font = '8pt Verdana';
+		w += Math.max(ctx.measureText(this.value).width, 30);
+		
+		this.bounds.corner.x = this.bounds.origin.x + w;
+		
+		
+		var x1 = this.bounds.origin.x + 0.5;
+		var y1 = this.bounds.origin.y + 0.5;
+		var x2 = this.bounds.corner.x + 0.5;
+		var y2 = this.bounds.corner.y + 0.5;
+		
+		var th = 21;
+		
+		var r = 7;
+		
+		this.drawRoundedRect(ctx, x1, y1, x2, y2, r);
+		ctx.fillStyle = 'rgba(193, 196, 199, 255)';
+		ctx.fill();
+		ctx.strokeStyle = 'rgba(148, 145, 145, 255)';
+		ctx.stroke();
+		
+		x1 += 5;
+		
+		ctx.fillStyle = 'black';
+		ctx.font = 'bold 8pt Verdana';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(this.label, x1, y1 + th / 2);
+		
+		x1 += ctx.measureText(this.label).width + 5;
+		
+		r = 4;
+		
+		this.drawRoundedRect(ctx, x1, y1 + 2, x2 - 4, y1 + th - 2, r);
+		ctx.fillStyle = this.color.toString();
+		ctx.fill();
+		ctx.strokeStyle = 'white';
+		ctx.stroke();
+		
+		ctx.fillStyle = 'white';
+		ctx.font = '8pt Verdana';
+		w = ctx.measureText(this.value).width;
+		ctx.fillText(this.value, x1 + ((x2 - x1 - 4) / 2 - (w / 2)), y1 + th / 2);
+	};
+	
+	jsc.Watcher.prototype.drawRoundedRect = function (ctx, x1, y1, x2, y2, r) {
+		ctx.beginPath();
+		ctx.moveTo(x1 + r, y1);
+		ctx.arcTo(x2, y1, x2, y2, r);
+		ctx.lineTo(x2, y2 - r);
+		ctx.arcTo(x2, y2, x1, y2, r);
+		ctx.lineTo(x1 + r, y2);
+		ctx.arcTo(x1, y2, x1, y1, r);
+		ctx.lineTo(x1, y1 + r);
+		ctx.arcTo(x1, y1, x2, y1, r);
+		ctx.closePath();
+	};
+	
+	
+	// Thread /////////////////////////////////////////////////
 	jsc.Thread = function (object, script) {
 		this.init(object, script);
 	}
@@ -1035,7 +1171,7 @@
 			return arg;
 		}
 		if (typeof arg === 'string') {
-			return '\'' + arg + '\'';
+			return '\'' + this.escapeString(arg) + '\'';
 		}
 		if (arg instanceof jsc.Sprite) {
 			return '\'' + arg.objName + '\'';
@@ -1057,18 +1193,22 @@
 		return string + ')';
 	};
 	
+	jsc.Thread.prototype.escapeString = function (string) {
+		return string.replace(/[\'\"\\]/g, "\\$&");
+	};
+	
 	jsc.Thread.prototype.compileReporter = function (predicate) {
 		var self = this.object;
 		return eval('(function(){return ' + this.compileArg(predicate) + '})');
 	};
 	
-	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn'];
+	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn', 'doPlaySoundAndWait'];
 	
 	jsc.Thread.prototype.compileSpecial = function (special) {
 		var compiled;
 		switch (special[0]) {
 		case 'wait:elapsed:from:':
-			compiled = [this.compileArg(special[1])];
+			compiled = [this.compileReporter(special[1])];
 			break;
 		case 'doForever':
 			compiled = [this.compile(special[1])];
@@ -1094,8 +1234,11 @@
 		case 'doForeverIf':
 			compiled = [this.compileReporter(special[1]), this.compile(special[2])];
 			break;
-		case 'doForeverIf':
+		case 'doReturn':
 			compiled = [];
+			break;
+		case 'doPlaySoundAndWait':
+			compiled = [this.compileReporter(special[1])];
 			break;
 		}
 		return [special[0]].concat(compiled);
@@ -1157,7 +1300,7 @@
 			return;
 		case 'doPlaySoundAndWait':
 			if (this.temp === null) {
-				this.temp = this.object.getSound(this.evalArg(block[1]));
+				this.temp = this.object.getSound(block[1]());
 				this.temp.play();
 				this.evalCommandList(true);
 				return;
@@ -1173,11 +1316,16 @@
 				return;
 			}
 			
-			var scripts = this.object.getStage().getAllThreads().filter(function (thread) {
-				return thread.hat[0] === 'EventHatMorph' && thread.hat[1].toLowerCase() === self.temp.toLowerCase() && thread.done;
-			});
+			var threads = this.object.getStage().getAllThreads();
 			
-			this.evalCommandList(scripts.length === 0);
+			for (var i = 0; i < threads.length; i++) {
+				if (threads[i].hat[0] === 'EventHatMorph' && threads[i].hat[1].toLowerCase() === self.temp.toLowerCase() && !threads[i].done) {
+					this.evalCommandList(true);
+					return;
+				}
+			}
+			
+			this.evalCommandList(false);
 			return;
 		case 'doIfElse':
 			this.evalCommandList(false, block[1]() ? block[2] : block[3]);
@@ -1195,7 +1343,7 @@
 			this.evalCommandList(true, block[2]);
 			return;
 		case 'doUntil':
-			if (!this.evalArg(block[1])) {
+			if (!block[1]()) {
 				this.evalCommandList(true, block[2]);
 			}
 			return;
@@ -1209,15 +1357,13 @@
 			this.stop();
 			return;
 		case 'doWaitUntil':
-			if (!block[1]()) {
-				this.evalCommandList(true);
-			}
+			this.evalCommandList(!block[1]());
 			return;
 		case 'wait:elapsed:from:':
 			if (!this.timer) {
 				this.timer = new jsc.Stopwatch();
 				this.evalCommandList(true);
-			} else if (this.timer.getElapsed() < jsc.castNumber(this.evalArg(block[1])) * 1000) {
+			} else if (this.timer.getElapsed() < jsc.castNumber(block[1]()) * 1000) {
 				this.evalCommandList(true);
 			}
 			this.evalCommandList(false);
@@ -1225,7 +1371,7 @@
 		case 'glideSecs:toX:y:elapsed:from:':
 			if (!this.temp) {
 				this.timer = new jsc.Stopwatch();
-				this.temp = [this.object.position, this.object.getStage().fromScratchCoords(new jsc.Point(jsc.castNumber(this.evalArg(block[2])), jsc.castNumber(this.evalArg(block[3])))), jsc.castNumber(this.evalArg(block[1]))];
+				this.temp = [this.object.position, this.object.getStage().fromScratchCoords(new jsc.Point(jsc.castNumber(block[2]()), jsc.castNumber(block[3]()))), jsc.castNumber(block[1]())];
 			} else if (this.timer.getElapsed() < this.temp[2] * 1000) {
 				this.object.position = this.temp[0].subtract(this.temp[1]).multiplyBy(this.timer.getElapsed() / -1000 / this.temp[2]).add(this.temp[0]);
 			} else {
@@ -1236,13 +1382,6 @@
 			this.evalCommandList(true);
 			return;
 		}
-	};
-
-	jsc.Thread.prototype.evalArg = function (arg) {
-		if (arg instanceof Array) {
-			return this.evalCommand(arg);
-		}
-		return arg;
 	};
 
 	jsc.Thread.prototype.evalCommandList = function (repeat, commands) {
@@ -1311,7 +1450,7 @@
 
 	// ImageMedia /////////////////////////////////////////////
 	jsc.ImageMedia = function () {
-
+		this.colorCache = {};
 	}
 
 	jsc.ImageMedia.prototype = new jsc.ScratchMedia();

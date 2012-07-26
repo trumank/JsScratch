@@ -63,7 +63,7 @@
 		this.getStage().timer.reset();
 	};
 	
-	jsc.Scriptable.prototype.timer = function () {
+	jsc.Scriptable.prototype.getTimer = function () {
 		return this.getStage().timer.getElapsed() / 1000;
 	};
 	
@@ -79,8 +79,8 @@
 		return 0;
 	};
 
-	jsc.Scriptable.prototype.playSound = function () {
-		var sound = this.getSound(args[0]);
+	jsc.Scriptable.prototype.playSound = function (sound) {
+		var sound = this.getSound(sound);
 		if (sound !== null) {
 			sound.play();
 		}
@@ -192,23 +192,62 @@
 	
 	jsc.Scriptable.prototype.changeVariable = function (name, type, value) {
 		var relative = type === 'changeVar:by:';
-
+		
 		var o = this.getStage().variables;
-		if (this.variables.at(name) !== undefined) {
+		if (typeof o[name] === 'undefined') {
 			o = this.variables;
 		}
-		o = o.at(name);
+		
 		if (relative) {
-			o[0] = jsc.castNumber(o) + jsc.castNumber(value);
+			o[name] = jsc.castNumber(o[name]) + jsc.castNumber(value);
 		} else {
-			o[0] = value;
+			o[name] = value;
 		}
-		if (o[1]) {
-			o[1].needsUpdate = true;
+	};
+	
+	jsc.Scriptable.prototype.hideVariable = function (variable) {
+		var children = this.getStage().children;
+		var child;
+		for (var i = 0; i < children.length; i++) {
+			child = children[i];
+			if (child instanceof jsc.Watcher && child.command === 'getMyVariable' && child.arg === variable) {
+				child.hidden = true;
+			}
+		}
+	};
+	
+	jsc.Scriptable.prototype.showVariable = function (variable) {
+		var children = this.getStage().children;
+		var child;
+		for (var i = 0; i < children.length; i++) {
+			child = children[i];
+			if (child instanceof jsc.Watcher && child.command === 'getMyVariable' && child.arg === variable) {
+				child.hidden = false;
+			}
 		}
 	};
 	
 	// LISTS ////////////////
+	jsc.Scriptable.prototype.contentsOfList = function (list) {
+		var list = this.getList(list.toString());
+		if (!list) {
+			return;
+		}
+		
+		var string = '';
+		
+		var space = '';
+		
+		for (var i = 0; i < list.length; i++) {
+			if (list[i].length > 1) {
+				space = ' ';
+				break;
+			}
+		}
+		
+		return list.join(space);
+	};
+	
 	jsc.Scriptable.prototype.appendtoList = function (item, list) {
 		var list = this.getList(list.toString());
 		if (!list) {
@@ -541,7 +580,15 @@
 	};
 	
 	jsc.Sprite.prototype.penColor = function (color) {
-		return this.pen.color = color;
+		this.pen.color = color;
+	};
+	
+	jsc.Sprite.prototype.setPenHueTo = function (hue) {
+		
+	};
+	
+	jsc.Sprite.prototype.setPenShadeTo = function (shade) {
+		
 	};
 	
 	jsc.Sprite.prototype.changePenSizeBy = function (delta) {

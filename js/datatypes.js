@@ -1,26 +1,6 @@
 var jsc = new (function JsScratch() {});
 
 (function (jsc) {
-	// Dictionary /////////////////////////////////////////////
-	jsc.Dictionary = function (keys, values) {
-		this.obj = {};
-		if (!keys || !values) {
-			return;
-		}
-		for (var i = 0; i < keys.length; i++) {
-			obj[keys[i]] = values[i];
-		}
-	}
-
-	jsc.Dictionary.prototype.at = function (key) {
-		return this.obj[key];
-	};
-
-	jsc.Dictionary.prototype.put = function (key, value) {
-		this.obj[key] = value;
-	};
-
-
 	// Form ///////////////////////////////////////////////////
 	jsc.Form = function (width, height, depth, offset, bits, colors) {
 		this.width = width;
