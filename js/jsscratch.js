@@ -1,16 +1,16 @@
 (function (jsc) {
 	// Player /////////////////////////////////////////////////
-	jsc.Player = function (url, canvas, autoplay) {
+	jsc.Player = function (url, canvas, autoplay, progress, load) {
 		this.canvas = canvas;
 		this.url = url;
 		
 		// download the project
 		var xhr = new XMLHttpRequest();
-		xhr.open('GET', url, true);
-		if (xhr.overrideMimeType) {
-			xhr.overrideMimeType("text/plain; charset=x-user-defined");
-		}
 		var self = this;
+		xhr.onprogress = function (e) {
+			progress(e.lengthComputable ? e.loaded / e.total: 1);
+		};
+		
 		xhr.onload = function (e) {
 			self.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
 				return str += String.fromCharCode(charIndex);
@@ -18,7 +18,12 @@
 			if (autoplay) {
 				self.start();
 			}
+			load();
 		};
+		xhr.open('GET', url, true);
+		if (xhr.overrideMimeType) {
+			xhr.overrideMimeType("text/plain; charset=x-user-defined");
+		}
 		xhr.send();
 	}
 
@@ -168,6 +173,14 @@
 		title.innerHTML = 'JsScratch';
 		header.appendChild(title);
 		
+		var progress = document.createElement('div');
+		progress.setAttribute('class', 'progress');
+		header.appendChild(progress);
+		
+		var bar = document.createElement('div');
+		bar.setAttribute('class', 'bar');
+		progress.appendChild(bar);
+		
 		var stop = document.createElement('div');
 		stop.setAttribute('class', 'button stop');
 		header.appendChild(stop);
@@ -190,7 +203,11 @@
 		canvas.innerHTML = 'Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>';
 		container.appendChild(canvas);
 		
-		var player = new jsc.Player(url, canvas, autoplay);
+		var player = new jsc.Player(url, canvas, autoplay, function (s) {
+			bar.style.width = (parseFloat(getComputedStyle(progress).width) - 2) * s + 'px';
+		}, function () {
+			progress.classList.add('fade');
+		});
 		
 		turbo.onclick = function () {
 			player.setTurbo(turbo.checked);
@@ -336,9 +353,7 @@
 			"/":"divide",
 			
 			"|":"or",
-			"&":"and",
-			
-			"\\\\":"and"
+			"&":"and"
 		};
 		if (special[selector]) {
 			return special[selector];
@@ -1225,6 +1240,9 @@
 			return '(c(' + this.compileArg(arg[1]) + ') * c(' + this.compileArg(arg[2]) + '))';
 		case '/':
 			return '(c(' + this.compileArg(arg[1]) + ') / c(' + this.compileArg(arg[2]) + '))';
+			
+		case '\\\\':
+			return '(c(' + this.compileArg(arg[1]) + ').mod(c(' + this.compileArg(arg[2]) + ')))';
 			
 		case 'computeFunction:of:':
 			var f = arg[1];

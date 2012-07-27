@@ -16,6 +16,90 @@
 	margin: 3px 3px;
 }
 
+.player .progress {
+	width: 334px;
+	height: 19px;
+	margin: 1px 0px;
+	display: block;
+	float: left;
+	background-color: grey;
+	border: 1px solid grey;
+	box-shadow: inset 0 0 6px #000000;
+	border-radius: 12px;
+	
+	-webkit-transition: opacity 1s ease-in;
+	-moz-transition: opacity 1s ease-in;
+}
+
+.player .fade {
+	opacity: 0;
+}
+
+.player .progress .bar {
+	width: 332px;
+	height: 17px;
+	
+	margin: 1px 1px;
+
+	border-radius: 12px;
+	box-shadow: inset 0 0 6px #000000;
+	
+	background-color: orange;
+	background-image: -moz-repeating-linear-gradient(45deg, rgba(255,255,255,.5), rgba(255,255,255,.5) 10px, transparent 10px, transparent 20px);
+	background-image: -webkit-repeating-linear-gradient(45deg, rgba(255,255,255,.5), rgba(255,255,255,.5) 10px, transparent 10px, transparent 20px);
+	background-size: 28px 100%;
+	
+	-moz-animation-duration: 1s;
+	-moz-animation-name: loading;
+	-moz-animation-iteration-count: infinite;
+	-moz-animation-timing-function: linear;
+	
+	-webkit-animation-duration: 1s;
+	-webkit-animation-name: loading;
+	-webkit-animation-iteration-count: infinite;
+	-webkit-animation-timing-function: linear;
+}
+
+@-moz-keyframes loading {
+	from {
+		background-position: 0px 0px;
+	}
+
+	to {
+		background-position: 28px 0px;
+	}
+}
+
+@-webkit-keyframes loading {
+	from {
+		background-position: 0px 0px;
+	}
+
+	to {
+		background-position: 28px 0px;
+	}
+}
+
+@-moz-keyframes fade {
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 0;
+	}
+}
+
+@-webkit-keyframes fade {
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 0;
+	}
+}
+
 .player .button {
 	position: relative;
 	float: right;
