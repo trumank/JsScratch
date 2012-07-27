@@ -78,14 +78,8 @@
 			return object;
 		}
 		var string = object.toString();
-		/*if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
+		if (/^(\+|\-)?[0-9]+((\.|\,)[0-9]+)*$/.test(string)) {
 			return parseFloat(string.match(/^\-?[0-9]+((\.|\,)[0-9]+)?/g)[0].replace(',', '.'));
-		}*/
-		
-		var num = Number(string);
-		
-		if (num === num) {
-			return num;
 		}
 		
 		return null;
@@ -275,7 +269,7 @@
 				list = this.lists[key][9];
 				for (var i = 0; i < list.length; i++) {
 					val = list[i];
-					num = jsc.castNumberOrNull(val);
+					num = null;//jsc.castNumberOrNull(val);
 					list[i] = ((num === null) ? val : num);
 				}
 				this.lists[key] = list;
@@ -1082,6 +1076,9 @@
 	
 	jsc.Watcher.prototype.updateValue = function () {
 		this.value = this.object[this.command](this.arg);
+		if (typeof this.value === 'number') {
+			this.value = (Math.round(this.value * 10) / 10).toString();
+		}
 	};
 	
 	jsc.Watcher.prototype.drawOn = function (ctx) {

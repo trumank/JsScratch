@@ -145,7 +145,7 @@
 	};
 	
 	jsc.Scriptable.prototype.concatenatewith = function (s1, s2) {
-		return s2.toString() + s1.toString();
+		return s1.toString() + s2.toString();
 	};
 	
 	jsc.Scriptable.prototype.letterof = function (i, string) {
@@ -494,8 +494,9 @@
 			index = (Math.round(cast) - 1).mod(this.costumes.length);
 			costume = this.costumes[index];
 		} else {
+			var name = c.toString();
 			for (var i = 0; i < this.costumes.length; i++) {
-				if (this.costumes[i].name === c.toString()) {
+				if (this.costumes[i].name === name) {
 					costume = this.costumes[i];
 					index = i;
 				}
@@ -592,11 +593,11 @@
 	
 	// PEN //////////////////
 	jsc.Sprite.prototype.putPenDown = function () {
-		/*var ctx = this.stage.penCtx;
+		var ctx = this.stage.penCtx;
 		ctx.beginPath();
 		ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
 		ctx.fillStyle = this.pen.color.toString();
-		ctx.fill();*/
+		ctx.fill();
 		this.penDown = true;
 	};
 	
