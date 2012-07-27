@@ -306,7 +306,17 @@
 	};
 
 	jsc.Scriptable.prototype.setup = function () {
+		this.allVariables = {};
+		
 		var key;
+		
+		for (key in this.variables) {
+			this.allVariables[key] = this.variables[key];
+		}
+		for (key in this.stage.variables) {
+			this.allVariables[key] = this.stage.variables[key];
+		}
+		
 		for (key in this.stage.variables) {
 			this.variables[key] = this.stage.variables[key];
 		}
@@ -537,6 +547,8 @@
 		this.buffer2 = jsc.newCanvas(this.width(), this.height());
 		this.bufferCtx2 = this.buffer2.getContext('2d');
 		
+		this.allVariables = this.variables;
+		
 		var self = this;
 		this.canvas.addEventListener('keydown', function (e) {
 			self.keydown(e);
@@ -635,6 +647,7 @@
 	};
 
 	jsc.Stage.prototype.start = function () {
+		this.stopAll();
 		this.addBroadcastToQueue('Scratch-StartClicked');
 	};
 

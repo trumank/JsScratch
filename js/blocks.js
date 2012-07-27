@@ -67,7 +67,7 @@
 		return this.stage.timer.getElapsed() / 1000;
 	};
 	
-	jsc.Scriptable.prototype.getAttributeof = function (object, attribute) {
+	jsc.Scriptable.prototype.getAttributeof = function (attribute, object) {
 		var s = this.coerceSprite(object);
 		if (s) {
 			var a = attribute.toString();
@@ -190,14 +190,14 @@
 	
 	// VARIABLES ////////////
 	jsc.Scriptable.prototype.getVariable = function (name) {
-		return this.variables[name].val;
+		return this.allVariables[name].val;
 	};
 	
 	jsc.Scriptable.prototype.changeVariable = function (name, relative, value) {
 		if (relative) {
-			this.variables[name].val = jsc.castNumber(this.variables[name].val) + jsc.castNumber(value);
+			this.allVariables[name].val = jsc.castNumber(this.allVariables[name].val) + jsc.castNumber(value);
 		} else {
-			this.variables[name].val = value;
+			this.allVariables[name].val = value;
 		}
 	};
 	
@@ -336,12 +336,15 @@
 	jsc.Stage.prototype.showBackground = function (background) {
 		var costume;
 		
-		var index = jsc.castNumber(background) - 1;
-		if (index >= 0 && index < this.costumes.length) {
+		var index;
+		var cast = jsc.castNumberOrNull(background);
+		if (cast !== null) {
+			index = (Math.round(cast) - 1).mod(this.costumes.length);
 			costume = this.costumes[index];
 		} else {
+			var name = background.toString();
 			for (var i = 0; i < this.costumes.length; i++) {
-				if (this.costumes[i].name.toLowerCase() === background.toLowerCase()) {
+				if (this.costumes[i].name === name) {
 					costume = this.costumes[i];
 					index = i;
 				}
@@ -350,7 +353,7 @@
 		if (costume) {
 			this.costume = costume;
 			this.costumeIndex = index;
-		};
+		}
 	};
 	
 	jsc.Stage.prototype.nextBackground = function () {
