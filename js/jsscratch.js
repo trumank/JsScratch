@@ -199,13 +199,9 @@
 		canvas.innerHTML = 'Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>';
 		subcon.appendChild(canvas);
 		
-		var overlay = document.createElement('div');
-		overlay.setAttribute('class', 'overlay');
-		subcon.appendChild(overlay);
-		
 		var progress = document.createElement('div');
 		progress.setAttribute('class', 'progress');
-		overlay.appendChild(progress);
+		subcon.appendChild(progress);
 		
 		var bar = document.createElement('div');
 		bar.setAttribute('class', 'bar');
@@ -214,6 +210,12 @@
 		var player = new jsc.Player(url, canvas, autoplay, function (s) {
 			bar.style.width = (parseFloat(getComputedStyle(progress).width) - 2) * s + 'px';
 		}, function () {
+			progress.addEventListener('webkitTransitionEnd', function () {
+				subcon.removeChild(progress);
+			}, false);
+			progress.addEventListener('transitionend', function () {
+				subcon.removeChild(progress);
+			}, false);
 			progress.classList.add('fade');
 		});
 		

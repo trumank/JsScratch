@@ -11,9 +11,11 @@
 }
 
 .player .subcon {
+	position: relative;
 	width: 480px;
 	height: 360px;
 	border: solid 1px black;
+	overflow: hidden;
 }
 
 .player .title {
@@ -22,22 +24,14 @@
 	margin: 3px 3px;
 }
 
-.player .overlay {
-	position: relative;
-	top: -365px;
-	width: 480px;
-	height: 360px;
-	z-index: 10000;
-	
-	background: none;
-}
-
 .player .progress {
-	position: relative;
+	position: absolute;
 	top: 130px;
 	left: 40px;
 	width: 400px;
 	height: 100px;
+	z-index: 10000;
+	
 	background-color: grey;
 	border: 1px solid grey;
 	box-shadow: inset 0 0 6px #000000;
