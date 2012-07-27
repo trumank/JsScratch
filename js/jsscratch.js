@@ -1389,7 +1389,7 @@
 		case 'doPlaySoundAndWait':
 			if (this.temp === null) {
 				this.temp = this.object.getSound(block[1]());
-				this.temp.play();
+				this.temp.play(this.object.volume);
 				this.evalCommandList(true);
 				return;
 			}
@@ -1648,8 +1648,9 @@
 		this.playing = false;
 	};
 	
-	jsc.SoundMedia.prototype.play = function () {
+	jsc.SoundMedia.prototype.play = function (volume) {
 		this.stop();
+		this.audio.volume = Math.max(Math.min(volume / 100, 1), 0);
 		this.audio.play();
 		this.playing = true;
 	};

@@ -79,15 +79,20 @@
 		return 0;
 	};
 
+	// SOUNDS ///////////////
 	jsc.Scriptable.prototype.playSound = function (sound) {
 		var sound = this.getSound(sound);
 		if (sound !== null) {
-			sound.play();
+			sound.play(this.volume);
 		}
 	};
 	
 	jsc.Scriptable.prototype.stopAllSounds = function () {
 		this.getStage().stopAllSounds();
+	};
+	
+	jsc.Scriptable.prototype.setVolumeTo = function (volume) {
+		this.volume = volume;
 	};
 	
 	// OPERATORS ////////////
