@@ -8,11 +8,11 @@
 	
 	// CONTROL //////////////
 	jsc.Scriptable.prototype.scratchBroadcast = function (message) {
-		this.getStage().addBroadcastToQueue(message.toString());
+		this.stage.addBroadcastToQueue(message.toString());
 	};
 	
 	jsc.Scriptable.prototype.stopAllScripts = function () {
-		this.getStage().stopAll();
+		this.stage.stopAll();
 	};
 	
 	// LOOKS ////////////////
@@ -30,14 +30,14 @@
 	
 	// SENSING //////////////
 	jsc.Scriptable.prototype.mouseX = function () {
-		return this.getStage().mouse.x - this.getStage().origin().x;
+		return this.stage.mouse.x - this.stage.origin().x;
 	};
 	
 	jsc.Scriptable.prototype.mouseY = function () {
-		return this.getStage().origin().y - this.getStage().mouse.y;
+		return this.stage.origin().y - this.stage.mouse.y;
 	};
 	jsc.Scriptable.prototype.mousePressed = function () {
-		return this.getStage().mouseDown;
+		return this.stage.mouseDown;
 	};
 	
 	jsc.Scriptable.prototype.keyPressed = function (key) {
@@ -54,25 +54,25 @@
 		};
 		var str = key.toString().toLowerCase();
 		if (keys[str]) {
-			return this.getStage().keys[keys[str]];
+			return this.stage.keys[keys[str]];
 		}
-		return this.getStage().keys[key.toString().toUpperCase().charCodeAt(0)];
+		return this.stage.keys[key.toString().toUpperCase().charCodeAt(0)];
 	};
 	
 	jsc.Scriptable.prototype.timerReset = function () {
-		this.getStage().timer.reset();
+		this.stage.timer.reset();
 	};
 	
 	jsc.Scriptable.prototype.getTimer = function () {
-		return this.getStage().timer.getElapsed() / 1000;
+		return this.stage.timer.getElapsed() / 1000;
 	};
 	
 	jsc.Scriptable.prototype.getAttributeof = function (object, attribute) {
 		var s = this.coerceSprite(object);
 		if (s) {
 			var a = attribute.toString();
-			if (typeof s.variables.obj[a] !== 'undefined') {
-				return s.variables.obj[a];
+			if (typeof s.variables[a] !== 'undefined') {
+				return s.variables[a].val;
 			}
 			return s.getAttribute(a);
 		}
@@ -88,7 +88,7 @@
 	};
 	
 	jsc.Scriptable.prototype.stopAllSounds = function () {
-		this.getStage().stopAllSounds();
+		this.stage.stopAllSounds();
 	};
 	
 	jsc.Scriptable.prototype.setVolumeTo = function (volume) {
@@ -129,9 +129,7 @@
 	};
 	
 	jsc.Scriptable.prototype.greatorThan = function (o1, o2) {
-		var a = parseFloat(o1);
-		var b = parseFloat(o2);
-		return (isNaN(a) ? o1 : a) > (isNaN(b) ? o2 : b);
+		return jsc.castNumber(o1) > jsc.castNumber(o2);
 	};
 	
 	jsc.Scriptable.prototype.and = function (b1, b2) {
@@ -187,29 +185,24 @@
 
 	// PEN //////////////////
 	jsc.Scriptable.prototype.clearPenTrails = function () {
-		this.getStage().penCtx.clearRect(0, 0, this.getStage().penCanvas.width, this.getStage().penCanvas.height);
+		this.stage.penCtx.clearRect(0, 0, this.stage.penCanvas.width, this.stage.penCanvas.height);
 	};
 	
 	// VARIABLES ////////////
-	jsc.Scriptable.prototype.readVariable = function (variable) {
-		return this.getVariable(variable.toString());
+	jsc.Scriptable.prototype.getVariable = function (name) {
+		return this.variables[name].val;
 	};
 	
 	jsc.Scriptable.prototype.changeVariable = function (name, relative, value) {
-		var o = this.getStage().variables;
-		if (typeof o[name] === 'undefined') {
-			o = this.variables;
-		}
-		
 		if (relative) {
-			o[name] = jsc.castNumber(o[name]) + jsc.castNumber(value);
+			this.variables[name].val = jsc.castNumber(this.variables[name].val) + jsc.castNumber(value);
 		} else {
-			o[name] = value;
+			this.variables[name].val = value;
 		}
 	};
 	
 	jsc.Scriptable.prototype.hideVariable = function (variable) {
-		var children = this.getStage().children;
+		var children = this.stage.children;
 		var child;
 		for (var i = 0; i < children.length; i++) {
 			child = children[i];
@@ -220,7 +213,7 @@
 	};
 	
 	jsc.Scriptable.prototype.showVariable = function (variable) {
-		var children = this.getStage().children;
+		var children = this.stage.children;
 		var child;
 		for (var i = 0; i < children.length; i++) {
 			child = children[i];
@@ -382,7 +375,7 @@
 	jsc.Sprite.prototype.pointTowards = function (object) {
 		var coords;
 		if (object.toString() === 'mouse') {
-			coords = this.getStage().mouse;
+			coords = this.stage.mouse;
 		} else {
 			var s = this.coerceSprite(object);
 			if (!s) {
@@ -407,7 +400,7 @@
 	};
 	
 	jsc.Sprite.prototype.gotoSpriteOrMouse = function (object) {
-		var stage = this.getStage();
+		var stage = this.stage;
 		if (object === null) {
 			return;
 		}
@@ -440,7 +433,7 @@
 	
 	jsc.Sprite.prototype.bounceOffEdge = function () {
 		var tb = this.getBoundingBox();
-		var sb = this.getStage().bounds;
+		var sb = this.stage.bounds;
 		
 		tb.origin.x = Math.ceil(tb.origin.x);
 		tb.origin.y = Math.ceil(tb.origin.y);
@@ -558,12 +551,12 @@
 	};
 	
 	jsc.Sprite.prototype.comeToFront = function () {
-		var children = this.getStage().children;
+		var children = this.stage.children;
 		children.unshift(children.splice(children.indexOf(this), 1)[0]);
 	};
 	
 	jsc.Sprite.prototype.goBackByLayers = function (layers) {
-		var children = this.getStage().children;
+		var children = this.stage.children;
 		var i = children.indexOf(this);
 		var layer = Math.min(i + Math.round(jsc.castNumber(layers)), children.length - 1);
 		children.splice(i, 1)
@@ -586,7 +579,7 @@
 	jsc.Sprite.prototype.distanceTo = function (object) {
 		var coords;
 		if (object.toString() === 'mouse') {
-			coords = this.getStage().mouse;
+			coords = this.stage.mouse;
 		} else {
 			var s = this.coerceSprite(object);
 			if (!s) {
@@ -599,11 +592,11 @@
 	
 	// PEN //////////////////
 	jsc.Sprite.prototype.putPenDown = function () {
-		var ctx = this.getStage().penCtx;
+		/*var ctx = this.stage.penCtx;
 		ctx.beginPath();
 		ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
 		ctx.fillStyle = this.pen.color.toString();
-		ctx.fill();
+		ctx.fill();*/
 		this.penDown = true;
 	};
 	
@@ -636,7 +629,7 @@
 		this.hidden = false;
 		var g = this.filters.ghost;
 		this.filters.ghost = 0;
-		this.drawOn(this.getStage().penCtx);
+		this.drawOn(this.stage.penCtx);
 		this.filters.ghost = g;
 		this.hidden = h;
 	};

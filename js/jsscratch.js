@@ -207,14 +207,22 @@
 		bar.setAttribute('class', 'bar');
 		progress.appendChild(bar);
 		
+		var flag = true;
+		
 		var player = new jsc.Player(url, canvas, autoplay, function (s) {
 			bar.style.width = (parseFloat(getComputedStyle(progress).width) - 2) * s + 'px';
 		}, function () {
 			progress.addEventListener('webkitTransitionEnd', function () {
-				subcon.removeChild(progress);
+				if (flag) {
+					subcon.removeChild(progress);
+					flag = false;
+				}
 			}, false);
 			progress.addEventListener('transitionend', function () {
-				subcon.removeChild(progress);
+				if (flag) {
+					subcon.removeChild(progress);
+					flag = false;
+				}
 			}, false);
 			progress.classList.add('fade');
 		});
@@ -249,7 +257,7 @@
 	};
 
 	jsc.Scriptable.prototype.initFields = function (fields, version) {
-		jsc.initFieldsNamed.call(this, ['bounds', 'parent', 'children', 'color', 'flags'], fields);
+		jsc.initFieldsNamed.call(this, ['bounds', 'stage', 'children', 'color', 'flags'], fields);
 		fields.nextField();
 		jsc.initFieldsNamed.call(this, ['objName', 'variables', 'blocksBin', 'isClone', 'media', 'costume'], fields);
 	};
@@ -276,6 +284,19 @@
 			this.lists = {};
 		}
 		
+		if (this.variables) {
+			for (key in this.variables) {
+				variable = this.variables[key];
+				
+				num = jsc.castNumberOrNull(variable);
+				val = ((num === null) ? variable : num);
+				
+				this.variables[key] = {val:val};
+			}
+		} else {
+			this.variables = {};
+		}
+		
 		this.costumes = this.media.filter(function (e) {
 			return e instanceof jsc.ImageMedia;
 		});
@@ -284,8 +305,23 @@
 		});
 		
 		this.costumeIndex = this.costumes.indexOf(this.costume);
+		
+		if (!this.stage) {
+			this.stage = this.getStage();
+		}
 	};
 
+	jsc.Scriptable.prototype.setup = function () {
+		var key;
+		for (key in this.stage.variables) {
+			this.variables[key] = this.stage.variables[key];
+		}
+		
+		for (key in this.stage.lists) {
+			this.lists[key] = this.stage.lists[key];
+		}
+	};
+	
 	jsc.Scriptable.prototype.getStage = function () {
 		if (this.parent instanceof jsc.Stage) {
 			return this.parent;
@@ -357,13 +393,10 @@
 			">":"greatorThan",
 			"<":"lessThan",
 			
-			"+":"add",
-			"-":"subtract",
-			"*":"multiply",
-			"/":"divide",
-			
 			"|":"or",
-			"&":"and"
+			"&":"and",
+			
+			"readVariable":"getVariable"
 		};
 		if (special[selector]) {
 			return special[selector];
@@ -382,14 +415,6 @@
 		}
 		return 0;
 	};
-
-	jsc.Scriptable.prototype.getVariable = function (name) {
-		return (typeof this.variables[name] === 'undefined') ? this.getStage().variables[name] : this.variables[name];
-	};
-
-	jsc.Scriptable.prototype.getMyVariable = function (name) {
-		return this.variables[name];
-	};
 	
 	jsc.Scriptable.prototype.getSound = function (sound) {
 		var cast = jsc.castNumberOrNull(sound);
@@ -406,11 +431,11 @@
 	};
 
 	jsc.Scriptable.prototype.getList = function (name) {
-		return (typeof this.lists[name] === 'undefined') ? this.getStage().lists[name] : this.lists[name];
+		return this.lists[name];
 	};
 	
 	jsc.Scriptable.prototype.toListLine = function (arg, list) {
-		var i = parseInt(arg);
+		var i = Math.round(jsc.castNumber(arg));
 		if (i) {
 			if (i >= 1 && i <= list.length) {
 				return i - 1;
@@ -434,7 +459,7 @@
 		if (sprite instanceof jsc.Scriptable) {
 			return sprite;
 		}
-		return this.getStage().getSprite(sprite.toString());
+		return this.stage.getSprite(sprite.toString());
 	};
 
 	jsc.Scriptable.prototype.stopAllMySounds = function () {
@@ -538,6 +563,10 @@
 		this.canvas.addEventListener('click', function (e) {
 			self.click(e);
 		}, false);
+		
+		for (var i = 0; i < this.sprites.length; i++) {
+			this.sprites[i].setup();
+		}
 		
 		setInterval(function () {
 			self.step();
@@ -802,7 +831,7 @@
 	};
 	
 	jsc.Sprite.prototype.isTouching = function (obj) {
-		var stage = this.getStage();
+		var stage = this.stage;
 		if (obj === 'edge') {
 			return !stage.bounds.containsRectangle(this.getBoundingBox().expandBy(-2).translateBy(1));
 		}
@@ -875,7 +904,7 @@
 	};
 	
 	jsc.Sprite.prototype.isTouchingColor = function (color) {
-		var stage = this.getStage();
+		var stage = this.stage;
 		var w = stage.width();
 		var h = stage.height();
 		
@@ -905,7 +934,7 @@
 	};
 	
 	jsc.Sprite.prototype.isColorTouchingColor = function (color1, color2) {
-		var stage = this.getStage();
+		var stage = this.stage;
 		var w = stage.width();
 		var h = stage.height();
 		
@@ -959,16 +988,16 @@
 	};
 	
 	jsc.Sprite.prototype.getRelativePosition = function () {
-		return this.position.subtract(this.getStage().origin()).multiplyBy(new jsc.Point(1, -1));
+		return this.position.subtract(this.stage.origin()).multiplyBy(new jsc.Point(1, -1));
 	};
 
 	jsc.Sprite.prototype.setRelativePosition = function (point) {
-		this.setPosition(point.multiplyBy(new jsc.Point(1, -1)).add(this.getStage().origin()));
+		this.setPosition(point.multiplyBy(new jsc.Point(1, -1)).add(this.stage.origin()));
 	};
 
 	jsc.Sprite.prototype.setPosition = function (point) {
 		if (this.penDown) {
-			var ctx = this.getStage().penCtx;
+			var ctx = this.stage.penCtx;
 			ctx.beginPath();
 			ctx.strokeStyle = this.pen.color.toString();
 			ctx.lineWidth = this.pen.size;
@@ -987,7 +1016,7 @@
 	};
 	
 	jsc.Sprite.prototype.getAttribute = function (attribute) {
-		var stage = this.getStage();
+		var stage = this.stage;
 		switch (attribute) {
 		case 'x position':
 			return stage.toScratchCoords(this.position).x;
@@ -1048,7 +1077,7 @@
 	};
 	
 	jsc.Watcher.prototype.commandLookup = {
-		"getVar:":"getMyVariable"
+		"getVar:":"getVariable"
 	};
 	
 	jsc.Watcher.prototype.updateValue = function () {
@@ -1297,7 +1326,7 @@
 		return this.eval('(function(){return ' + this.compileArg(predicate) + '})');
 	};
 	
-	jsc.Thread.prototype.specialBlocks = ['wait:elapsed:from:', 'doForever', 'doIf', 'doIfElse', 'doUntil', 'doRepeat', 'doWaitUntil', 'doBroadcastAndWait', 'doForeverIf', 'doReturn', 'doPlaySoundAndWait', 'glideSecs:toX:y:elapsed:from:'];
+	jsc.Thread.prototype.specialBlocks = ['doIf', 'doPlaySoundAndWait', 'doBroadcastAndWait', 'doIfElse', 'doRepeat', 'doUntil', 'doForever', 'doForeverIf', 'doReturn', 'doWaitUntil', 'wait:elapsed:from:', 'glideSecs:toX:y:elapsed:from:'];
 	
 	jsc.Thread.prototype.compileSpecial = function (special) {
 		var compiled;
@@ -1339,7 +1368,7 @@
 			compiled = [this.compileReporter(special[1]), this.compileReporter(special[2]), this.compileReporter(special[3])];
 			break;
 		}
-		return [special[0]].concat(compiled);
+		return [this.specialBlocks.indexOf(special[0])].concat(compiled);
 	};
 	
 	jsc.Thread.prototype.start = function () {
@@ -1386,105 +1415,113 @@
 			block();
 			return;
 		}
-		
-		var selector = block[0];
 
-		switch (selector)
-		{
-		case 'doIf':
-			if (block[1]()) {
-				this.evalCommandList(false, block[2]);
-			}
-			return;
-		case 'doPlaySoundAndWait':
-			if (this.temp === null) {
-				this.temp = this.object.getSound(block[1]());
-				this.temp.play(this.object.volume);
-				this.evalCommandList(true);
-				return;
-			}
-			if (this.temp.playing) {
-				this.evalCommandList(true);
-			} else {
-				this.reset();
-			}
-			return;
-		case 'doBroadcastAndWait':
-			var self = this;
-			if (this.temp === null) {
-				this.temp = block[1]().toString();
-				this.object.getStage().addBroadcastToQueue(this.temp);
-				this.evalCommandList(true);
-				return;
-			}
-			
-			var threads = this.object.getStage().getAllThreads();
-			
-			for (var i = 0; i < threads.length; i++) {
-				if (threads[i].hat[0] === 'EventHatMorph' && threads[i].hat[1].toLowerCase() === self.temp.toLowerCase() && !threads[i].done) {
-					this.evalCommandList(true);
-					return;
-				}
-			}
-			this.reset();
-			return;
-		case 'doIfElse':
-			this.evalCommandList(false, block[1]() ? block[2] : block[3]);
-			return;
-		case 'doRepeat':
-			if (this.temp === null) {
-				this.temp = Math.round(jsc.castNumber(block[1]()));
-			}
-			if (this.temp <= 0) {
-				this.reset();
-				return;
-			}
-
-			this.temp--;
-			this.evalCommandList(true, block[2]);
-			return;
-		case 'doUntil':
-			if (!block[1]()) {
-				this.evalCommandList(true, block[2]);
-			}
-			return;
-		case 'doForever':
-			this.evalCommandList(true, block[1]);
-			return;
-		case 'doForeverIf':
-			this.evalCommandList(true, block[1]() ? block[2] : null);
-			return;
-		case 'doReturn':
-			this.stop();
-			return;
-		case 'doWaitUntil':
-			if (!block[1]()) {
-				this.evalCommandList(true);
-			}
-			return;
-		case 'wait:elapsed:from:':
-			if (!this.timer) {
-				this.timer = new jsc.Stopwatch();
-				this.evalCommandList(true);
-			} else if (this.timer.getElapsed() < jsc.castNumber(block[1]()) * 1000) {
-				this.evalCommandList(true);
-			}
-			this.reset();
-			return;
-		case 'glideSecs:toX:y:elapsed:from:':
-			if (!this.temp) {
-				this.timer = new jsc.Stopwatch();
-				this.temp = [this.object.position, this.object.getStage().fromScratchCoords(new jsc.Point(jsc.castNumber(block[2]()), jsc.castNumber(block[3]()))), jsc.castNumber(block[1]())];
-			} else if (this.timer.getElapsed() < this.temp[2] * 1000) {
-				this.object.position = this.temp[0].subtract(this.temp[1]).multiplyBy(this.timer.getElapsed() / -1000 / this.temp[2]).add(this.temp[0]);
-			} else {
-				this.object.position = this.temp[1];
-				this.reset();
-				return;
-			}
+		this[block[0]](block);
+	};
+	
+	jsc.Thread.prototype[0] = function (block) {
+		if (block[1]()) {
+			this.evalCommandList(false, block[2]);
+		}
+	};
+	
+	jsc.Thread.prototype[1] = function (block) {
+		if (this.temp === null) {
+			this.temp = this.object.getSound(block[1]());
+			this.temp.play(this.object.volume);
 			this.evalCommandList(true);
 			return;
 		}
+		if (this.temp.playing) {
+			this.evalCommandList(true);
+		} else {
+			this.reset();
+		}
+	};
+	
+	jsc.Thread.prototype[2] = function (block) {
+		var self = this;
+		if (this.temp === null) {
+			this.temp = block[1]().toString();
+			this.object.stage.addBroadcastToQueue(this.temp);
+			this.evalCommandList(true);
+			return;
+		}
+		
+		var threads = this.object.stage.getAllThreads();
+		
+		for (var i = 0; i < threads.length; i++) {
+			if (threads[i].hat[0] === 'EventHatMorph' && threads[i].hat[1].toLowerCase() === self.temp.toLowerCase() && !threads[i].done) {
+				this.evalCommandList(true);
+				return;
+			}
+		}
+		this.reset();
+	};
+	
+	jsc.Thread.prototype[3] = function (block) {
+		this.evalCommandList(false, block[1]() ? block[2] : block[3]);
+	};
+	
+	jsc.Thread.prototype[4] = function (block) {
+		if (this.temp === null) {
+			this.temp = Math.round(jsc.castNumber(block[1]()));
+		}
+		if (this.temp <= 0) {
+			this.reset();
+			return;
+		}
+
+		this.temp--;
+		this.evalCommandList(true, block[2]);
+	};
+	
+	jsc.Thread.prototype[5] = function (block) {
+		if (!block[1]()) {
+			this.evalCommandList(true, block[2]);
+		}
+	};
+	
+	jsc.Thread.prototype[6] = function (block) {
+		this.evalCommandList(true, block[1]);
+	};
+	
+	jsc.Thread.prototype[7] = function (block) {
+		this.evalCommandList(true, block[1]() ? block[2] : null);
+	};
+	
+	jsc.Thread.prototype[8] = function (block) {
+		this.stop();
+	};
+	
+	jsc.Thread.prototype[9] = function (block) {
+		if (!block[1]()) {
+			this.evalCommandList(true);
+		}
+	};
+	
+	jsc.Thread.prototype[10] = function (block) {
+		if (!this.timer) {
+			this.timer = new jsc.Stopwatch();
+			this.evalCommandList(true);
+		} else if (this.timer.getElapsed() < jsc.castNumber(block[1]()) * 1000) {
+			this.evalCommandList(true);
+		}
+		this.reset();
+	};
+	
+	jsc.Thread.prototype[11] = function (block) {
+		if (!this.temp) {
+			this.timer = new jsc.Stopwatch();
+			this.temp = [this.object.position, this.object.stage.fromScratchCoords(new jsc.Point(jsc.castNumber(block[2]()), jsc.castNumber(block[3]()))), jsc.castNumber(block[1]())];
+		} else if (this.timer.getElapsed() < this.temp[2] * 1000) {
+			this.object.position = this.temp[0].subtract(this.temp[1]).multiplyBy(this.timer.getElapsed() / -1000 / this.temp[2]).add(this.temp[0]);
+		} else {
+			this.object.position = this.temp[1];
+			this.reset();
+			return;
+		}
+		this.evalCommandList(true);
 	};
 
 	jsc.Thread.prototype.evalCommandList = function (repeat, commands) {
