@@ -10,18 +10,34 @@
 	border-bottom: none;
 }
 
+.player .subcon {
+	width: 480px;
+	height: 360px;
+	border: solid 1px black;
+}
+
 .player .title {
 	float: left;
 	font: 12px Arial, Helvetica, sans-serif;
 	margin: 3px 3px;
 }
 
+.player .overlay {
+	position: relative;
+	top: -365px;
+	width: 480px;
+	height: 360px;
+	z-index: 10000;
+	
+	background: none;
+}
+
 .player .progress {
-	width: 334px;
-	height: 19px;
-	margin: 1px 0px;
-	display: block;
-	float: left;
+	position: relative;
+	top: 130px;
+	left: 40px;
+	width: 400px;
+	height: 100px;
 	background-color: grey;
 	border: 1px solid grey;
 	box-shadow: inset 0 0 6px #000000;
@@ -36,8 +52,8 @@
 }
 
 .player .progress .bar {
-	width: 332px;
-	height: 17px;
+	width: 0px;
+	height: 98px;
 	
 	margin: 1px 1px;
 
@@ -58,6 +74,8 @@
 	-webkit-animation-name: loading;
 	-webkit-animation-iteration-count: infinite;
 	-webkit-animation-timing-function: linear;
+	
+	-webkit-transition: width 1s ease-in-out;
 }
 
 @-moz-keyframes loading {
@@ -77,26 +95,6 @@
 
 	to {
 		background-position: 28px 0px;
-	}
-}
-
-@-moz-keyframes fade {
-	from {
-		opacity: 1;
-	}
-
-	to {
-		opacity: 0;
-	}
-}
-
-@-webkit-keyframes fade {
-	from {
-		opacity: 1;
-	}
-
-	to {
-		opacity: 0;
 	}
 }
 
@@ -159,6 +157,5 @@
 }
 
 .player canvas {
-	border: solid 1px black;
 	position: relative;
 }

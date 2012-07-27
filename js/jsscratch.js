@@ -173,14 +173,6 @@
 		title.innerHTML = 'JsScratch';
 		header.appendChild(title);
 		
-		var progress = document.createElement('div');
-		progress.setAttribute('class', 'progress');
-		header.appendChild(progress);
-		
-		var bar = document.createElement('div');
-		bar.setAttribute('class', 'bar');
-		progress.appendChild(bar);
-		
 		var stop = document.createElement('div');
 		stop.setAttribute('class', 'button stop');
 		header.appendChild(stop);
@@ -196,12 +188,28 @@
 		
 		container.appendChild(header);
 		
+		var subcon = document.createElement('div');
+		subcon.setAttribute('class', 'subcon');
+		container.appendChild(subcon);
+		
 		var canvas = document.createElement('canvas');
 		canvas.setAttribute('width', '480');
 		canvas.setAttribute('height', '360');
 		canvas.setAttribute('tabindex', '1');
 		canvas.innerHTML = 'Sorry, your browser does not support the <code>canvas</code> tag! <a href="http://www.google.com/chrome/">Get Chrome!</a>';
-		container.appendChild(canvas);
+		subcon.appendChild(canvas);
+		
+		var overlay = document.createElement('div');
+		overlay.setAttribute('class', 'overlay');
+		subcon.appendChild(overlay);
+		
+		var progress = document.createElement('div');
+		progress.setAttribute('class', 'progress');
+		overlay.appendChild(progress);
+		
+		var bar = document.createElement('div');
+		bar.setAttribute('class', 'bar');
+		progress.appendChild(bar);
 		
 		var player = new jsc.Player(url, canvas, autoplay, function (s) {
 			bar.style.width = (parseFloat(getComputedStyle(progress).width) - 2) * s + 'px';
