@@ -1,5 +1,6 @@
 .player {
 	cursor: default;
+	overflow: hidden;
 }
 
 .player .header {
