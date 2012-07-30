@@ -1247,9 +1247,9 @@
 		}
 		if (typeof arg === 'string') {
 			if (preferNumber) {
-				var num = jsc.castNumber(arg);
+				var num = jsc.castNumberOrNull(arg);
 				if (num !== null) {
-					return num;
+					return arg;
 				}
 			}
 			return '\'' + this.escapeString(arg) + '\'';
