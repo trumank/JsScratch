@@ -1514,8 +1514,10 @@
 		if (!this.timer) {
 			this.timer = new jsc.Stopwatch();
 			this.evalCommandList(true);
+			return;
 		} else if (this.timer.getElapsed() < jsc.castNumber(block[1]()) * 1000) {
 			this.evalCommandList(true);
+			return;
 		}
 		this.reset();
 	};
