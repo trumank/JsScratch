@@ -374,13 +374,22 @@
 			"ypos:":"setYPos",
 			"heading:":"setHeading",
 			
+			"showBackground:":"lookLike",
+			"nextBackground":"nextCostume",
+			
 			"broadcast:":"scratchBroadcast",
 			"stopAll":"stopAllScripts"
 		};
 		if (special[selector]) {
 			return special[selector];
 		}
-		return selector.replace(/\:/g, '');
+		var str = selector.replace(/\:/g, '');
+		if (typeof this[str] === 'function') {
+			return str;
+		}
+		
+		console.log('Unknown command block \'' + selector + '\', ignoring...');
+		return null;
 	};
 
 	jsc.Scriptable.prototype.getReporterFunctionName = function (selector) {
@@ -390,6 +399,7 @@
 			"heading":"getHeading",
 			
 			"costumeIndex":"getCostumeIndex",
+			"backgroundIndex":"getCostumeIndex",
 			
 			"timer":"getTimer",
 			
@@ -405,7 +415,13 @@
 		if (special[selector]) {
 			return special[selector];
 		}
-		return selector.replace(/\:/g, '');
+		var str = selector.replace(/\:/g, '');
+		if (typeof this[str] === 'function') {
+			return str;
+		}
+		
+		console.log('Unknown reporter block \'' + selector + '\', ignoring...');
+		return null;
 	};
 	
 	jsc.Scriptable.prototype.isStage = function () {
@@ -566,9 +582,6 @@
 		this.canvas.addEventListener('mousedown', function (e) {
 			self.mousedown(e);
 		}, false);
-		this.canvas.addEventListener('click', function (e) {
-			self.click(e);
-		}, false);
 		
 		for (var i = 0; i < this.sprites.length; i++) {
 			this.sprites[i].setup();
@@ -704,8 +717,7 @@
 	};
 	jsc.Stage.prototype.mousedown = function (e) {
 		this.mouseDown = true;
-	};
-	jsc.Stage.prototype.click = function (e) {
+		
 		for (var i = 0; i < this.children.length; i++) {
 			var sprite = this.children[i];
 			if (sprite instanceof jsc.Sprite && sprite.isTouching('mouse') && sprite.filters.ghost < 100) {
@@ -1225,7 +1237,13 @@
 			if (special !== null) {
 				string += special;
 			} else {
-				string += 'self.' + this.object.getCommandFunctionName(selector) + '(';
+				var command = this.object.getCommandFunctionName(selector);
+				
+				if (command === null) {
+					continue;
+				}
+				
+				string += 'self.' + command + '(';
 				for (var j = 1; j < script[i].length; j++) {
 					string += this.compileArg(script[i][j]);
 					if (j !== script[i].length - 1) {
@@ -1245,6 +1263,8 @@
 		switch (command[0]) {
 		case 'changeVariable':
 			return 'self.changeVariable(' + this.compileArg(command[1]) + ',' + ((command[2] === 'changeVar:by:') ? 'true' : 'false') + ',' + this.compileArg(command[3], true) + ');';
+		case 'comment:':
+			return '';
 		}
 		return null;
 	};
@@ -1265,6 +1285,9 @@
 		if (arg instanceof jsc.Sprite) {
 			return '\'' + arg.objName + '\'';
 		}
+		if (arg instanceof jsc.Stage) {
+			return 'self.stage';
+		}
 		if (arg instanceof jsc.Color) {
 			return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
 		}
@@ -1277,7 +1300,13 @@
 			return special;
 		}
 		
-		var string = 'self.' + this.object.getReporterFunctionName(arg[0]) + '(';
+		var reporter = this.object.getReporterFunctionName(arg[0]);
+		
+		if (reporter === null) {
+			return '0';
+		}
+		
+		var string = 'self.' + reporter + '(';
 		for (var i = 1; i < arg.length; i++) {
 			string += this.compileArg(arg[i]);
 			if (i !== arg.length - 1) {
@@ -1300,6 +1329,9 @@
 			
 		case '\\\\':
 			return '(c(' + this.compileArg(arg[1]) + ').mod(c(' + this.compileArg(arg[2]) + ')))';
+			
+		case 'abs':
+			return 'Math.abs(' + this.compileArg(arg[1], true) + ')';
 			
 		case 'computeFunction:of:':
 			var f = arg[1];
@@ -1336,7 +1368,14 @@
 	};
 	
 	jsc.Thread.prototype.escapeString = function (string) {
-		return string.replace(/[\'\"\\]/g, "\\$&");
+		return string.replace(/\\/g, '\\\\').
+			replace(/\u0008/g, '\\b').
+			replace(/\t/g, '\\t').
+			replace(/\n/g, '\\n').
+			replace(/\f/g, '\\f').
+			replace(/\r/g, '\\r').
+			replace(/'/g, '\\\'').
+			replace(/"/g, '\\"');
 	};
 	
 	jsc.Thread.prototype.compileReporter = function (predicate) {

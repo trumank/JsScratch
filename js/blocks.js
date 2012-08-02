@@ -16,6 +16,38 @@
 	};
 	
 	// LOOKS ////////////////
+	jsc.Scriptable.prototype.lookLike = function (c) {
+		var costume;
+		
+		var index;
+		var cast = jsc.castNumberOrNull(c);
+		if (cast !== null) {
+			index = (Math.round(cast) - 1).mod(this.costumes.length);
+			costume = this.costumes[index];
+		} else {
+			var name = c.toString();
+			for (var i = 0; i < this.costumes.length; i++) {
+				if (this.costumes[i].name === name) {
+					costume = this.costumes[i];
+					index = i;
+				}
+			}
+		}
+		if (costume) {
+			this.costume = costume;
+			this.costumeIndex = index;
+		}
+	};
+	
+	jsc.Scriptable.prototype.nextCostume = function () {
+		this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
+		this.costume = this.costumes[this.costumeIndex];
+	};
+	
+	jsc.Scriptable.prototype.getCostumeIndex = function () {
+		return (this.costumeIndex).mod(this.costumes.length - 1) + 1;
+	};
+	
 	jsc.Scriptable.prototype.changeGraphicEffectby = function (effect, delta) {
 		this.filters[effect.toString()] += jsc.castNumber(delta);
 	};
@@ -332,34 +364,7 @@
 	
 	// STAGE //////////////////////////////////////////////
 	
-	// LOOKS ////////////////
-	jsc.Stage.prototype.showBackground = function (background) {
-		var costume;
-		
-		var index;
-		var cast = jsc.castNumberOrNull(background);
-		if (cast !== null) {
-			index = (Math.round(cast) - 1).mod(this.costumes.length);
-			costume = this.costumes[index];
-		} else {
-			var name = background.toString();
-			for (var i = 0; i < this.costumes.length; i++) {
-				if (this.costumes[i].name === name) {
-					costume = this.costumes[i];
-					index = i;
-				}
-			}
-		}
-		if (costume) {
-			this.costume = costume;
-			this.costumeIndex = index;
-		}
-	};
 	
-	jsc.Stage.prototype.nextBackground = function () {
-		this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
-		return this.costume = this.costumes[this.costumeIndex];
-	};
 	
 	
 	// SPRITES ////////////////////////////////////////////
@@ -488,38 +493,6 @@
 	};
 
 	// LOOKS ////////////////
-	jsc.Sprite.prototype.lookLike = function (c) {
-		var costume;
-		
-		var index;
-		var cast = jsc.castNumberOrNull(c);
-		if (cast !== null) {
-			index = (Math.round(cast) - 1).mod(this.costumes.length);
-			costume = this.costumes[index];
-		} else {
-			var name = c.toString();
-			for (var i = 0; i < this.costumes.length; i++) {
-				if (this.costumes[i].name === name) {
-					costume = this.costumes[i];
-					index = i;
-				}
-			}
-		}
-		if (costume) {
-			this.costume = costume;
-			this.costumeIndex = index;
-		}
-	};
-	
-	jsc.Sprite.prototype.nextCostume = function () {
-		this.costumeIndex = (this.costumeIndex + 1).mod(this.costumes.length);
-		this.costume = this.costumes[this.costumeIndex];
-	};
-	
-	jsc.Sprite.prototype.getCostumeIndex = function () {
-		return (this.costumeIndex).mod(this.costumes.length - 1) + 1;
-	};
-	
 	jsc.Sprite.prototype.say = function (string) {
 		console.log(string);
 	};
