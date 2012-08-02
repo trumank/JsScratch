@@ -597,10 +597,14 @@
 	// PEN //////////////////
 	jsc.Sprite.prototype.putPenDown = function () {
 		var ctx = this.stage.penCtx;
-		ctx.beginPath();
-		ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
 		ctx.fillStyle = this.pen.color.toString();
-		ctx.fill();
+		if (this.pen.size === 1) {
+			ctx.fillRect(this.position.x, this.position.y, 1, 1);
+		} else {
+			ctx.beginPath();
+			ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
+			ctx.fill();
+		}
 		this.penDown = true;
 	};
 	
@@ -610,14 +614,27 @@
 	
 	jsc.Sprite.prototype.penColor = function (color) {
 		this.pen.color = color;
+		this.pen.hsl = this.pen.color.getHSL();
+	};
+	
+	jsc.Sprite.prototype.changePenHueBy = function (delta) {
+		this.pen.hsl[0] += delta / 200;
+		this.updatePenColor();
 	};
 	
 	jsc.Sprite.prototype.setPenHueTo = function (hue) {
-		
+		this.pen.hsl[0] = hue / 200;
+		this.updatePenColor();
+	};
+	
+	jsc.Sprite.prototype.changePenShadeBy = function (delta) {
+		this.pen.hsl[2] += delta / 100;
+		this.updatePenColor();
 	};
 	
 	jsc.Sprite.prototype.setPenShadeTo = function (shade) {
-		
+		this.pen.hsl[2] = shade / 100;
+		this.updatePenColor();
 	};
 	
 	jsc.Sprite.prototype.changePenSizeBy = function (delta) {

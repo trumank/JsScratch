@@ -757,6 +757,7 @@
 		this.hidden = (this.flags & 1) === 1;
 		this.pen = {};
 		this.pen.color = new jsc.Color(0, 0, 255);
+		this.pen.hsl = this.pen.color.getHSL();
 		this.pen.size = 1;
 	};
 
@@ -1041,6 +1042,13 @@
 	
 	jsc.Sprite.prototype.scratchHeading = function () {
 		return (this.direction + 90 + 179).mod(360) - 179;
+	};
+	
+	jsc.Sprite.prototype.updatePenColor = function () {
+		var mod = this.pen.hsl.slice(0);
+		mod[0] = mod[0].mod(1);
+		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
+		this.pen.color.setHSL(mod);
 	};
 	
 	
