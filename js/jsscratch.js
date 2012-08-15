@@ -565,6 +565,10 @@
 		
 		this.allVariables = this.variables;
 		
+		this.canvas.onclick = function () {
+			
+		};
+		
 		var self = this;
 		this.canvas.addEventListener('keydown', function (e) {
 			self.keydown(e);
