@@ -218,7 +218,7 @@
 					flag = false;
 				}
 			}, false);
-			progress.classList.add('fade');
+			progress.className += ' fade';
 		});
 		
 		turbo.onclick = function () {
@@ -269,8 +269,8 @@
 				list = this.lists[key][9];
 				for (var i = 0; i < list.length; i++) {
 					val = list[i];
-					num = null;//jsc.castNumberOrNull(val);
-					list[i] = ((num === null) ? val : num);
+					num = jsc.castNumberOrNull(val);
+					list[i] = ((num !== null && num.toString() === val) ? num : val);
 				}
 				this.lists[key] = list;
 			}
@@ -455,24 +455,30 @@
 	};
 	
 	jsc.Scriptable.prototype.toListLine = function (arg, list) {
-		var i = Math.round(jsc.castNumber(arg));
-		if (i) {
-			if (i >= 1 && i <= list.length) {
-				return i - 1;
-			} else {
-				return -1;
+		if (typeof arg === 'string') {
+			switch (arg.toString()) {
+			case 'first':
+				return 0;
+			case 'last':
+				return list.length - 1;
+			case 'any':
+				return Math.floor(Math.random() * list.length);
+			default:
+				if (i = Math.round(jsc.castNumber(arg)) === null) {
+					return -1;
+				}
 			}
+		} else if (typeof arg === 'number') {
+			i = arg;
+		} else {
+			return -1;
 		}
 		
-		switch (arg.toString()) {
-		case 'first':
-			return 0;
-		case 'last':
-			return list.length - 1;
-		case 'any':
-			return Math.floor(Math.random() * list.length);
+		if (i >= 1 && i <= list.length) {
+			return i - 1;
+		} else {
+			return -1;
 		}
-		return -1;
 	};
 
 	jsc.Scriptable.prototype.coerceSprite = function (sprite) {
@@ -531,7 +537,9 @@
 	jsc.Stage.prototype.drawOn = function (ctx) {
 		ctx.drawImage(this.costume.getImage(), 0, 0);
 		
+		this.penCtx.stroke();
 		ctx.drawImage(this.penCanvas, 0, 0);
+		this.penCtx.beginPath();
 		
 		for (var i = this.children.length - 1; i >= 0; i--) {
 			this.children[i].drawOn && this.children[i].drawOn(ctx);
@@ -541,7 +549,9 @@
 	jsc.Stage.prototype.drawAllButOn = function (ctx, sprite) {
 		ctx.drawImage(this.costume.getImage(), 0, 0);
 		
+		this.penCtx.stroke();
 		ctx.drawImage(this.penCanvas, 0, 0);
+		this.penCtx.beginPath();
 		
 		for (var i = this.sprites.length - 1; i >= 0; i--) {
 			if (this.sprites[i] !== sprite) {
@@ -556,6 +566,7 @@
 			this.penCanvas = jsc.newCanvas(this.bounds.width(), this.bounds.height())
 		}
 		this.penCtx = this.penCanvas.getContext('2d');
+		this.penCtx.lineCap = 'round';
 		
 		this.buffer1 = jsc.newCanvas(this.width(), this.height());
 		this.bufferCtx1 = this.buffer1.getContext('2d');
@@ -605,12 +616,13 @@
 		if (this.turbo) {
 			stopwatch = new jsc.Stopwatch();
 		}
+		
 		do {
 			jsc.Stage.uber.step.call(this);
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
 			}
-		} while (this.turbo && stopwatch.getElapsed() < 10)
+		} while (this.turbo && stopwatch.getElapsed() < 30)
 		
 		this.ctx.clearRect(0, 0, this.bounds.width(), this.bounds.height())
 		this.drawOn(this.ctx);
@@ -640,11 +652,14 @@
 	};
 
 	jsc.Stage.prototype.getAllThreads = function () {
+		if (this.allThreads) {
+			return this.allThreads;
+		}
 		var threads = this.threads;
 		for (var i = 0; i < this.sprites.length; i++) {
 			threads = threads.concat(this.sprites[i].threads);
 		}
-		return threads;
+		return this.allThreads = threads;
 	};
 
 	jsc.Stage.prototype.addBroadcastToQueue = function (broadcast) {
@@ -771,6 +786,11 @@
 		this.pen.color = new jsc.Color(0, 0, 255);
 		this.pen.hsl = this.pen.color.getHSL();
 		this.pen.size = 1;
+	};
+	
+	jsc.Sprite.prototype.step = function () {
+		this.stage.penCtx.moveTo(this.position.x, this.position.y);
+		jsc.Sprite.uber.step.call(this);
 	};
 
 	jsc.Sprite.prototype.drawOn = function (ctx, debug) {
@@ -1016,19 +1036,15 @@
 	};
 
 	jsc.Sprite.prototype.setPosition = function (point) {
-		if (this.penDown) {
-			var ctx = this.stage.penCtx;
-			ctx.beginPath();
-			ctx.strokeStyle = this.pen.color.toString();
-			ctx.lineWidth = this.pen.size;
-			ctx.lineCap = 'round';
-			ctx.moveTo(this.position.x, this.position.y);
-		}
+		var ctx = this.stage.penCtx;
 		this.position = point;
 		if (this.penDown) {
 			ctx.lineTo(this.position.x, this.position.y);
-			ctx.stroke();
+		} else {
+			ctx.moveTo(this.position.x, this.position.y);
 		}
+		
+		this.hasMoved = true;
 	};
 
 	jsc.Sprite.prototype.extent = function () {
@@ -1056,11 +1072,21 @@
 		return (this.direction + 90 + 179).mod(360) - 179;
 	};
 	
-	jsc.Sprite.prototype.updatePenColor = function () {
+	jsc.Sprite.prototype.updatePen = function () {
 		var mod = this.pen.hsl.slice(0);
 		mod[0] = mod[0].mod(1);
 		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
 		this.pen.color.setHSL(mod);
+		
+		var penCtx = this.stage.penCtx;
+		
+		penCtx.stroke();
+		
+		penCtx.lineWidth = this.pen.size;
+		penCtx.strokeStyle = this.pen.color.toString();
+		
+		penCtx.beginPath();
+		penCtx.moveTo(this.position.x, this.position.y);
 	};
 	
 	
@@ -1104,7 +1130,8 @@
 	};
 	
 	jsc.Watcher.prototype.commandLookup = {
-		"getVar:":"getVariable"
+		"getVar:":"getVariable",
+		"timer":"getTimer"
 	};
 	
 	jsc.Watcher.prototype.updateValue = function () {
@@ -1265,6 +1292,8 @@
 			return 'self.changeVariable(' + this.compileArg(command[1]) + ',' + ((command[2] === 'changeVar:by:') ? 'true' : 'false') + ',' + this.compileArg(command[3], true) + ');';
 		case 'comment:':
 			return '';
+		case 'readVariable':
+			return 'self.allVariables[' + this.compileArg(command[1]) + '].val;';
 		}
 		return null;
 	};
@@ -1274,12 +1303,12 @@
 			return arg;
 		}
 		if (typeof arg === 'string') {
-			if (preferNumber) {
+			/*if (preferNumber) {
 				var num = jsc.castNumberOrNull(arg);
 				if (num !== null) {
 					return arg;
 				}
-			}
+			}*/
 			return '\'' + this.escapeString(arg) + '\'';
 		}
 		if (arg instanceof jsc.Sprite) {
@@ -1592,6 +1621,7 @@
 			this.temp = null;
 		}
 		this.pushState();
+		this.yield = false;
 		this.script = commands || [];
 		this.index = -1;
 		this.timer = null;
@@ -1604,7 +1634,7 @@
 	};
 
 	jsc.Thread.prototype.pushState = function () {
-		this.stack.push([this.script, this.index, this.timer, this.temp]);
+		this.stack.push([this.yield, this.script, this.index, this.timer, this.temp]);
 	};
 
 	jsc.Thread.prototype.popState = function () {
@@ -1617,10 +1647,11 @@
 		}
 
 		var oldState = this.stack.pop();
-		this.script = oldState[0];
-		this.index = oldState[1];
-		this.timer = oldState[2];
-		this.temp = oldState[3];
+		this.yield = oldState[0];
+		this.script = oldState[1];
+		this.index = oldState[2];
+		this.timer = oldState[3];
+		this.temp = oldState[4];
 	};
 
 

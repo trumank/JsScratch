@@ -151,12 +151,15 @@
 	};
 	
 	jsc.Scriptable.prototype.lessThan = function (o1, o2) {
-		var a = parseFloat(o1);
-		var b = parseFloat(o2);
-		return (isNaN(a) ? o1 : a) < (isNaN(b) ? o2 : b);
+		return jsc.castNumber(o1) < jsc.castNumber(o2);
 	};
 	
 	jsc.Scriptable.prototype.equals = function (o1, o2) {
+		if (typeof o1 === typeof o2 === 'number') {
+			return o1 === o2;
+		} else if (typeof o1 === typeof o2 === 'string') {
+			return o1.toLowerCase() === o2.toLowerCase();
+		}
 		return o1.toString().toLowerCase() === o2.toString().toLowerCase();
 	};
 	
@@ -217,6 +220,7 @@
 
 	// PEN //////////////////
 	jsc.Scriptable.prototype.clearPenTrails = function () {
+		this.stage.penCtx.stroke();
 		this.stage.penCtx.clearRect(0, 0, this.stage.penCanvas.width, this.stage.penCanvas.height);
 	};
 	
@@ -238,7 +242,7 @@
 		var child;
 		for (var i = 0; i < children.length; i++) {
 			child = children[i];
-			if (child instanceof jsc.Watcher && child.command === 'getMyVariable' && child.arg === variable) {
+			if (child instanceof jsc.Watcher && child.command === 'getVariable' && child.arg === variable) {
 				child.hidden = true;
 			}
 		}
@@ -249,7 +253,7 @@
 		var child;
 		for (var i = 0; i < children.length; i++) {
 			child = children[i];
-			if (child instanceof jsc.Watcher && child.command === 'getMyVariable' && child.arg === variable) {
+			if (child instanceof jsc.Watcher && child.command === 'getVariable' && child.arg === variable) {
 				child.hidden = false;
 			}
 		}
@@ -569,53 +573,67 @@
 	
 	// PEN //////////////////
 	jsc.Sprite.prototype.putPenDown = function () {
-		var ctx = this.stage.penCtx;
-		ctx.fillStyle = this.pen.color.toString();
-		if (this.pen.size === 1) {
-			ctx.fillRect(this.position.x, this.position.y, 1, 1);
-		} else {
-			ctx.beginPath();
-			ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
-			ctx.fill();
-		}
+		this.hasMoved = false;
+		
 		this.penDown = true;
 	};
 	
 	jsc.Sprite.prototype.putPenUp = function () {
+		if (!this.hasMoved) {
+			var ctx = this.stage.penCtx;
+			ctx.fillStyle = this.pen.color.toString();
+			if (this.pen.size === 1) {
+				ctx.fillRect(this.position.x, this.position.y, 1, 1);
+			} else {
+				ctx.beginPath();
+				ctx.arc(this.position.x, this.position.y, this.pen.size / 2, 0, 2 * Math.PI, false);
+				ctx.fill();
+			}
+		}
+		this.hasMoved = false;
 		this.penDown = false;
 	};
 	
 	jsc.Sprite.prototype.penColor = function (color) {
 		this.pen.color = color;
 		this.pen.hsl = this.pen.color.getHSL();
+		this.updatePen();
 	};
 	
 	jsc.Sprite.prototype.changePenHueBy = function (delta) {
 		this.pen.hsl[0] += delta / 200;
-		this.updatePenColor();
+		this.updatePen();
 	};
 	
 	jsc.Sprite.prototype.setPenHueTo = function (hue) {
 		this.pen.hsl[0] = hue / 200;
-		this.updatePenColor();
+		this.updatePen();
 	};
 	
 	jsc.Sprite.prototype.changePenShadeBy = function (delta) {
 		this.pen.hsl[2] += delta / 100;
-		this.updatePenColor();
+		this.updatePen();
 	};
 	
 	jsc.Sprite.prototype.setPenShadeTo = function (shade) {
 		this.pen.hsl[2] = shade / 100;
-		this.updatePenColor();
+		this.updatePen();
 	};
 	
 	jsc.Sprite.prototype.changePenSizeBy = function (delta) {
-		this.pen.size = Math.max(this.pen.size + jsc.castNumber(delta), 1);
+		var n = Math.max(this.pen.size + jsc.castNumber(delta), 1);
+		if (this.pen.size !== n) {
+			this.pen.size = n;
+			this.updatePen();
+		}
 	};
 	
 	jsc.Sprite.prototype.penSize = function (size) {
-		this.pen.size = Math.max(jsc.castNumber(size), 0);
+		var n = Math.max(jsc.castNumber(size), 1);
+		if (this.pen.size !== n) {
+			this.pen.size = n;
+			this.updatePen();
+		}
 	};
 	
 	jsc.Sprite.prototype.stampCostume = function () {
