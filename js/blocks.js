@@ -155,12 +155,13 @@
 	};
 	
 	jsc.Scriptable.prototype.equals = function (o1, o2) {
-		if (typeof o1 === typeof o2 === 'number') {
+		/*if (typeof o1 === typeof o2 === 'number') {
 			return o1 === o2;
 		} else if (typeof o1 === typeof o2 === 'string') {
 			return o1.toLowerCase() === o2.toLowerCase();
 		}
-		return o1.toString().toLowerCase() === o2.toString().toLowerCase();
+		return o1.toString().toLowerCase() === o2.toString().toLowerCase();*/
+		return o1 == o2;
 	};
 	
 	jsc.Scriptable.prototype.greatorThan = function (o1, o2) {

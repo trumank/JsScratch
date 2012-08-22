@@ -598,9 +598,23 @@
 			this.sprites[i].setup();
 		}
 		
+		this.eventsByName = {};
+		
+		var threads = this.getAllThreads();
+		
+		for (var i = 0; i < threads.length; i++) {
+			if (threads[i].hat[0] === 'EventHatMorph') {
+				var name = threads[i].hat[1].toLowerCase();
+				if (!this.eventsByName[name]) {
+					this.eventsByName[name] = [];
+				}
+				this.eventsByName[name].push(threads[i]);
+			}
+		}
+		
 		setInterval(function () {
 			self.step();
-		}, 1000 / 40);
+		}, 1000 / 30);
 	};
 	
 	jsc.Stage.prototype.width = function () {
@@ -630,9 +644,13 @@
 
 	jsc.Stage.prototype.stepThreads = function () {
 		for (var i = 0; i < this.broadcastQueue.length; i++) {
-			this.broadcast(this.broadcastQueue[i]);
-			for (var j = 0; j < this.sprites.length; j++) {
-				this.sprites[j].broadcast(this.broadcastQueue[i]);
+			var events = this.eventsByName[this.broadcastQueue[i]];
+			if (events) {
+				for (var j = 0; j < events.length; j++) {
+					if (events[j].done) {
+						events[j].start();
+					}
+				}
 			}
 		}
 		this.broadcastQueue = [];
@@ -663,7 +681,7 @@
 	};
 
 	jsc.Stage.prototype.addBroadcastToQueue = function (broadcast) {
-		this.broadcastQueue.push(broadcast);
+		this.broadcastQueue.push(broadcast.toLowerCase());
 	};
 
 	jsc.Stage.prototype.stopAll = function () {
@@ -1073,10 +1091,7 @@
 	};
 	
 	jsc.Sprite.prototype.updatePen = function () {
-		var mod = this.pen.hsl.slice(0);
-		mod[0] = mod[0].mod(1);
-		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
-		this.pen.color.setHSL(mod);
+		this.updatePenColor();
 		
 		var penCtx = this.stage.penCtx;
 		
@@ -1087,6 +1102,13 @@
 		
 		penCtx.beginPath();
 		penCtx.moveTo(this.position.x, this.position.y);
+	};
+	
+	jsc.Sprite.prototype.updatePenColor = function () {
+		var mod = this.pen.hsl.slice(0);
+		mod[0] = mod[0].mod(1);
+		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
+		this.pen.color.setHSL(mod);
 	};
 	
 	
@@ -1137,7 +1159,7 @@
 	jsc.Watcher.prototype.updateValue = function () {
 		this.value = this.object[this.command](this.arg);
 		if (typeof this.value === 'number') {
-			this.value = (Math.round(this.value * 10) / 10).toString();
+			this.value = (Math.round(this.value * 1000) / 1000).toString();
 		}
 	};
 	
@@ -1528,20 +1550,23 @@
 	jsc.Thread.prototype[2] = function (block) {
 		var self = this;
 		if (this.temp === null) {
-			this.temp = block[1]().toString();
+			this.temp = block[1]().toString().toLowerCase();
 			this.object.stage.addBroadcastToQueue(this.temp);
 			this.evalCommandList(true);
 			return;
 		}
 		
-		var threads = this.object.stage.getAllThreads();
+		var threads = this.object.stage.eventsByName[this.temp];
 		
-		for (var i = 0; i < threads.length; i++) {
-			if (threads[i].hat[0] === 'EventHatMorph' && threads[i].hat[1].toLowerCase() === self.temp.toLowerCase() && !threads[i].done) {
-				this.evalCommandList(true);
-				return;
+		if (threads) {
+			for (var i = 0; i < threads.length; i++) {
+				if (!threads[i].done) {
+					this.evalCommandList(true);
+					return;
+				}
 			}
 		}
+		
 		this.reset();
 	};
 	
@@ -1634,12 +1659,17 @@
 	};
 
 	jsc.Thread.prototype.pushState = function () {
-		this.stack.push([this.yield, this.script, this.index, this.timer, this.temp]);
+		this.stack.push({
+			yield: this.yield,
+			script: this.script,
+			index: this.index,
+			timer: this.timer,
+			temp: this.temp
+		});
 	};
 
 	jsc.Thread.prototype.popState = function () {
-		if (this.stack.length == 0)
-		{
+		if (this.stack.length == 0) {
 			this.script = [];
 			this.index = 0;
 			this.done = this.yield = true;
@@ -1647,11 +1677,11 @@
 		}
 
 		var oldState = this.stack.pop();
-		this.yield = oldState[0];
-		this.script = oldState[1];
-		this.index = oldState[2];
-		this.timer = oldState[3];
-		this.temp = oldState[4];
+		this.yield = oldState.yield;
+		this.script = oldState.script;
+		this.index = oldState.index;
+		this.timer = oldState.timer;
+		this.temp = oldState.temp;
 	};
 
 
