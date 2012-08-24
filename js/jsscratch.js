@@ -464,9 +464,11 @@
 			case 'any':
 				return Math.floor(Math.random() * list.length);
 			default:
-				if (i = Math.round(jsc.castNumber(arg)) === null) {
+				i = jsc.castNumberOrNull(arg)
+				if (i === null) {
 					return -1;
 				}
+				i = Math.round(i);
 			}
 		} else if (typeof arg === 'number') {
 			i = arg;
@@ -630,6 +632,8 @@
 		if (this.turbo) {
 			stopwatch = new jsc.Stopwatch();
 		}
+		
+		this.addBroadcastToQueue('animationframe');
 		
 		do {
 			jsc.Stage.uber.step.call(this);
@@ -807,7 +811,7 @@
 	};
 	
 	jsc.Sprite.prototype.step = function () {
-		this.stage.penCtx.moveTo(this.position.x, this.position.y);
+		this.stage.penCtx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 		jsc.Sprite.uber.step.call(this);
 	};
 
@@ -1057,9 +1061,9 @@
 		var ctx = this.stage.penCtx;
 		this.position = point;
 		if (this.penDown) {
-			ctx.lineTo(this.position.x, this.position.y);
+			ctx.lineTo(this.position.x - 0.5, this.position.y - 0.5);
 		} else {
-			ctx.moveTo(this.position.x, this.position.y);
+			ctx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 		}
 		
 		this.hasMoved = true;
@@ -1101,7 +1105,7 @@
 		penCtx.strokeStyle = this.pen.color.toString();
 		
 		penCtx.beginPath();
-		penCtx.moveTo(this.position.x, this.position.y);
+		penCtx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 	};
 	
 	jsc.Sprite.prototype.updatePenColor = function () {
