@@ -633,7 +633,10 @@
 			stopwatch = new jsc.Stopwatch();
 		}
 		
-		this.addBroadcastToQueue('animationframe');
+		if (this.animationFrame) {
+			this.addBroadcastToQueue('animationframe');
+			this.animationFrame = false;
+		}
 		
 		do {
 			jsc.Stage.uber.step.call(this);
@@ -648,6 +651,9 @@
 
 	jsc.Stage.prototype.stepThreads = function () {
 		for (var i = 0; i < this.broadcastQueue.length; i++) {
+			if (this.broadcastQueue[i] === 'requestanimationframe') {
+				this.animationFrame = true;
+			}
 			var events = this.eventsByName[this.broadcastQueue[i]];
 			if (events) {
 				for (var j = 0; j < events.length; j++) {
@@ -808,6 +814,7 @@
 		this.pen.color = new jsc.Color(0, 0, 255);
 		this.pen.hsl = this.pen.color.getHSL();
 		this.pen.size = 1;
+		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.step = function () {
@@ -853,6 +860,10 @@
 	}
 	
 	jsc.Sprite.prototype.getBoundingBox = function () {
+		if (!this.boundingChanged) {
+			return this.boundingBox;
+		}
+		this.boundingChanged = false;
 		var p = this.position;
 		var rc = this.costume.rotationCenter;
 		
@@ -862,8 +873,8 @@
 		var xp2 = this.costume.extent().x - rc.x;
 		var yp2 = this.costume.extent().y - rc.y;
 		
-		if (this.rotationStyle !== 'normal') {
-			return new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
+		if (this.rotationStyle !== 'normal' || this.scratchHeading() === 90) {
+			return this.boundingBox = new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
 		}
 		
 		var rad = Math.PI/180 * (this.direction);
@@ -889,7 +900,7 @@
 		var rx2 = Math.ceil(p.x + Math.max(x1, x2, x3, x4) * this.scalePoint.x);
 		var ry2 = Math.ceil(p.y + Math.max(y1, y2, y3, y4) * this.scalePoint.y);
 		
-		return new jsc.Rectangle(rx1, ry1, rx2, ry2);
+		return this.boundingBox = new jsc.Rectangle(rx1, ry1, rx2, ry2);
 	};
 	
 	jsc.Sprite.prototype.isTouching = function (obj) {
@@ -910,18 +921,23 @@
 			if (!b1.containsPoint(stage.mouse)) {
 				return false;
 			}
-			var bufferCtx1 = stage.bufferCtx1;
-			bufferCtx1.clearRect(0, 0, w, h);
-			var g = this.filters.ghost || 0;
-			this.filters.ghost = 0;
-			this.drawOn(bufferCtx1);
-			this.filters.ghost = g;
 			
-			var mx = stage.mouse.x;
-			var my = stage.mouse.y;
+			var rc = this.costume.rotationCenter;
+			var angle = this.direction.mod(360) * Math.PI / 180;
+
+			var p = this.stage.mouse;
+
+			p = p.translateBy(new jsc.Point(-Math.round(this.position.x), -Math.round(this.position.y)));
+
+			p = p.scaleBy(new jsc.Point(1 / (this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x), 1 / this.scalePoint.y));
 			
-			var d = bufferCtx1.getImageData(mx, my, 1, 1).data;
-			return d[3] > 0;
+			if (this.rotationStyle === 'normal') {
+				p = p.rotateBy(-angle);
+			}
+			
+			p = p.translateBy(new jsc.Point(rc.x - 1, rc.y - 1));
+
+			return this.costume.getImage().getContext('2d').getImageData(p.x, p.y, 1, 1).data[3] > 0;
 		} else {
 			var other = this.coerceSprite(obj);
 			if (!other || other.hidden) {
@@ -1066,7 +1082,7 @@
 			ctx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 		}
 		
-		this.hasMoved = true;
+		this.boundingChanged = this.hasMoved = true;
 	};
 
 	jsc.Sprite.prototype.extent = function () {
@@ -1095,24 +1111,16 @@
 	};
 	
 	jsc.Sprite.prototype.updatePen = function () {
-		this.updatePenColor();
-		
 		var penCtx = this.stage.penCtx;
 		
 		penCtx.stroke();
 		
 		penCtx.lineWidth = this.pen.size;
-		penCtx.strokeStyle = this.pen.color.toString();
+		var hsl = this.pen.hsl;
+		penCtx.strokeStyle = 'hsl(' + (hsl[0] * 360) + ', ' + (hsl[1] * 100) + '%, ' + (hsl[2] * 100) + '%)';
 		
 		penCtx.beginPath();
 		penCtx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
-	};
-	
-	jsc.Sprite.prototype.updatePenColor = function () {
-		var mod = this.pen.hsl.slice(0);
-		mod[0] = mod[0].mod(1);
-		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
-		this.pen.color.setHSL(mod);
 	};
 	
 	
@@ -1255,12 +1263,14 @@
 			};
 			this.hat[1] = keys[this.hat[1]] || this.hat[1].toUpperCase().charCodeAt(0);
 		}
+		this.colors = [];
 		this.wholeScript = this.script = this.compile(script.slice(1, script.length));
 		this.done = true;
 	};
 
 	jsc.Thread.prototype.eval = function (script) {
 		var self = this.object;
+		var colors = this.colors;
 		var c = jsc.castNumber;
 		return eval(script);
 	};
@@ -1344,7 +1354,9 @@
 			return 'self.stage';
 		}
 		if (arg instanceof jsc.Color) {
-			return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
+			//return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
+			this.colors.push(arg);
+			return 'colors[' + (this.colors.length - 1) + ']';
 		}
 		if (!(arg instanceof Array)) {
 			return arg;
