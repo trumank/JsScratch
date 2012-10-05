@@ -218,7 +218,7 @@
 					flag = false;
 				}
 			}, false);
-			progress.classList.add('fade');
+			progress.className += ' fade';
 		});
 		
 		turbo.onclick = function () {
@@ -269,8 +269,8 @@
 				list = this.lists[key][9];
 				for (var i = 0; i < list.length; i++) {
 					val = list[i];
-					num = null;//jsc.castNumberOrNull(val);
-					list[i] = ((num === null) ? val : num);
+					num = jsc.castNumberOrNull(val);
+					list[i] = ((num !== null && num.toString() === val) ? num : val);
 				}
 				this.lists[key] = list;
 			}
@@ -455,24 +455,32 @@
 	};
 	
 	jsc.Scriptable.prototype.toListLine = function (arg, list) {
-		var i = Math.round(jsc.castNumber(arg));
-		if (i) {
-			if (i >= 1 && i <= list.length) {
-				return i - 1;
-			} else {
-				return -1;
+		if (typeof arg === 'string') {
+			switch (arg.toString()) {
+			case 'first':
+				return 0;
+			case 'last':
+				return list.length - 1;
+			case 'any':
+				return Math.floor(Math.random() * list.length);
+			default:
+				i = jsc.castNumberOrNull(arg)
+				if (i === null) {
+					return -1;
+				}
+				i = Math.round(i);
 			}
+		} else if (typeof arg === 'number') {
+			i = arg;
+		} else {
+			return -1;
 		}
 		
-		switch (arg.toString()) {
-		case 'first':
-			return 0;
-		case 'last':
-			return list.length - 1;
-		case 'any':
-			return Math.floor(Math.random() * list.length);
+		if (i >= 1 && i <= list.length) {
+			return i - 1;
+		} else {
+			return -1;
 		}
-		return -1;
 	};
 
 	jsc.Scriptable.prototype.coerceSprite = function (sprite) {
@@ -531,7 +539,9 @@
 	jsc.Stage.prototype.drawOn = function (ctx) {
 		ctx.drawImage(this.costume.getImage(), 0, 0);
 		
+		this.penCtx.stroke();
 		ctx.drawImage(this.penCanvas, 0, 0);
+		this.penCtx.beginPath();
 		
 		for (var i = this.children.length - 1; i >= 0; i--) {
 			this.children[i].drawOn && this.children[i].drawOn(ctx);
@@ -541,7 +551,9 @@
 	jsc.Stage.prototype.drawAllButOn = function (ctx, sprite) {
 		ctx.drawImage(this.costume.getImage(), 0, 0);
 		
+		this.penCtx.stroke();
 		ctx.drawImage(this.penCanvas, 0, 0);
+		this.penCtx.beginPath();
 		
 		for (var i = this.sprites.length - 1; i >= 0; i--) {
 			if (this.sprites[i] !== sprite) {
@@ -556,6 +568,7 @@
 			this.penCanvas = jsc.newCanvas(this.bounds.width(), this.bounds.height())
 		}
 		this.penCtx = this.penCanvas.getContext('2d');
+		this.penCtx.lineCap = 'round';
 		
 		this.buffer1 = jsc.newCanvas(this.width(), this.height());
 		this.bufferCtx1 = this.buffer1.getContext('2d');
@@ -591,9 +604,23 @@
 			this.sprites[i].setup();
 		}
 		
+		this.eventsByName = {};
+		
+		var threads = this.getAllThreads();
+		
+		for (var i = 0; i < threads.length; i++) {
+			if (threads[i].hat[0] === 'EventHatMorph') {
+				var name = threads[i].hat[1].toLowerCase();
+				if (!this.eventsByName[name]) {
+					this.eventsByName[name] = [];
+				}
+				this.eventsByName[name].push(threads[i]);
+			}
+		}
+		
 		setInterval(function () {
 			self.step();
-		}, 1000 / 40);
+		}, 1000 / 30);
 	};
 	
 	jsc.Stage.prototype.width = function () {
@@ -609,12 +636,18 @@
 		if (this.turbo) {
 			stopwatch = new jsc.Stopwatch();
 		}
+		
+		if (this.animationFrame) {
+			this.addBroadcastToQueue('animationframe');
+			this.animationFrame = false;
+		}
+		
 		do {
 			jsc.Stage.uber.step.call(this);
 			for (var i = 0; i < this.sprites.length; i++) {
 				this.sprites[i].step();
 			}
-		} while (this.turbo && stopwatch.getElapsed() < 10)
+		} while (this.turbo && stopwatch.getElapsed() < 30)
 		
 		this.ctx.clearRect(0, 0, this.bounds.width(), this.bounds.height())
 		this.drawOn(this.ctx);
@@ -622,9 +655,16 @@
 
 	jsc.Stage.prototype.stepThreads = function () {
 		for (var i = 0; i < this.broadcastQueue.length; i++) {
-			this.broadcast(this.broadcastQueue[i]);
-			for (var j = 0; j < this.sprites.length; j++) {
-				this.sprites[j].broadcast(this.broadcastQueue[i]);
+			if (this.broadcastQueue[i] === 'requestanimationframe') {
+				this.animationFrame = true;
+			}
+			var events = this.eventsByName[this.broadcastQueue[i]];
+			if (events) {
+				for (var j = 0; j < events.length; j++) {
+					if (events[j].done) {
+						events[j].start();
+					}
+				}
 			}
 		}
 		this.broadcastQueue = [];
@@ -644,15 +684,18 @@
 	};
 
 	jsc.Stage.prototype.getAllThreads = function () {
+		if (this.allThreads) {
+			return this.allThreads;
+		}
 		var threads = this.threads;
 		for (var i = 0; i < this.sprites.length; i++) {
 			threads = threads.concat(this.sprites[i].threads);
 		}
-		return threads;
+		return this.allThreads = threads;
 	};
 
 	jsc.Stage.prototype.addBroadcastToQueue = function (broadcast) {
-		this.broadcastQueue.push(broadcast);
+		this.broadcastQueue.push(broadcast.toLowerCase());
 	};
 
 	jsc.Stage.prototype.stopAll = function () {
@@ -775,6 +818,12 @@
 		this.pen.color = new jsc.Color(0, 0, 255);
 		this.pen.hsl = this.pen.color.getHSL();
 		this.pen.size = 1;
+		this.boundingChanged = true;
+	};
+	
+	jsc.Sprite.prototype.step = function () {
+		this.stage.penCtx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
+		jsc.Sprite.uber.step.call(this);
 	};
 
 	jsc.Sprite.prototype.drawOn = function (ctx, debug) {
@@ -815,6 +864,10 @@
 	}
 	
 	jsc.Sprite.prototype.getBoundingBox = function () {
+		if (!this.boundingChanged) {
+			return this.boundingBox;
+		}
+		this.boundingChanged = false;
 		var p = this.position;
 		var rc = this.costume.rotationCenter;
 		
@@ -824,8 +877,8 @@
 		var xp2 = this.costume.extent().x - rc.x;
 		var yp2 = this.costume.extent().y - rc.y;
 		
-		if (this.rotationStyle !== 'normal') {
-			return new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
+		if (this.rotationStyle !== 'normal' || this.scratchHeading() === 90) {
+			return this.boundingBox = new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
 		}
 		
 		var rad = Math.PI/180 * (this.direction);
@@ -851,7 +904,7 @@
 		var rx2 = Math.ceil(p.x + Math.max(x1, x2, x3, x4) * this.scalePoint.x);
 		var ry2 = Math.ceil(p.y + Math.max(y1, y2, y3, y4) * this.scalePoint.y);
 		
-		return new jsc.Rectangle(rx1, ry1, rx2, ry2);
+		return this.boundingBox = new jsc.Rectangle(rx1, ry1, rx2, ry2);
 	};
 	
 	jsc.Sprite.prototype.isTouching = function (obj) {
@@ -872,18 +925,23 @@
 			if (!b1.containsPoint(stage.mouse)) {
 				return false;
 			}
-			var bufferCtx1 = stage.bufferCtx1;
-			bufferCtx1.clearRect(0, 0, w, h);
-			var g = this.filters.ghost || 0;
-			this.filters.ghost = 0;
-			this.drawOn(bufferCtx1);
-			this.filters.ghost = g;
 			
-			var mx = stage.mouse.x;
-			var my = stage.mouse.y;
+			var rc = this.costume.rotationCenter;
+			var angle = this.direction.mod(360) * Math.PI / 180;
+
+			var p = this.stage.mouse;
+
+			p = p.translateBy(new jsc.Point(-Math.round(this.position.x), -Math.round(this.position.y)));
+
+			p = p.scaleBy(new jsc.Point(1 / (this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x), 1 / this.scalePoint.y));
 			
-			var d = bufferCtx1.getImageData(mx, my, 1, 1).data;
-			return d[3] > 0;
+			if (this.rotationStyle === 'normal') {
+				p = p.rotateBy(-angle);
+			}
+			
+			p = p.translateBy(new jsc.Point(rc.x - 1, rc.y - 1));
+
+			return this.costume.getImage().getContext('2d').getImageData(p.x, p.y, 1, 1).data[3] > 0;
 		} else {
 			var other = this.coerceSprite(obj);
 			if (!other || other.hidden) {
@@ -1020,19 +1078,15 @@
 	};
 
 	jsc.Sprite.prototype.setPosition = function (point) {
-		if (this.penDown) {
-			var ctx = this.stage.penCtx;
-			ctx.beginPath();
-			ctx.strokeStyle = this.pen.color.toString();
-			ctx.lineWidth = this.pen.size;
-			ctx.lineCap = 'round';
-			ctx.moveTo(this.position.x, this.position.y);
-		}
+		var ctx = this.stage.penCtx;
 		this.position = point;
 		if (this.penDown) {
-			ctx.lineTo(this.position.x, this.position.y);
-			ctx.stroke();
+			ctx.lineTo(this.position.x - 0.5, this.position.y - 0.5);
+		} else {
+			ctx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 		}
+		
+		this.boundingChanged = this.hasMoved = true;
 	};
 
 	jsc.Sprite.prototype.extent = function () {
@@ -1060,11 +1114,17 @@
 		return (this.direction + 90 + 179).mod(360) - 179;
 	};
 	
-	jsc.Sprite.prototype.updatePenColor = function () {
-		var mod = this.pen.hsl.slice(0);
-		mod[0] = mod[0].mod(1);
-		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
-		this.pen.color.setHSL(mod);
+	jsc.Sprite.prototype.updatePen = function () {
+		var penCtx = this.stage.penCtx;
+		
+		penCtx.stroke();
+		
+		penCtx.lineWidth = this.pen.size;
+		var hsl = this.pen.hsl;
+		penCtx.strokeStyle = 'hsl(' + (hsl[0] * 360) + ', ' + (hsl[1] * 100) + '%, ' + (hsl[2] * 100) + '%)';
+		
+		penCtx.beginPath();
+		penCtx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 	};
 	
 	
@@ -1108,13 +1168,14 @@
 	};
 	
 	jsc.Watcher.prototype.commandLookup = {
-		"getVar:":"getVariable"
+		"getVar:":"getVariable",
+		"timer":"getTimer"
 	};
 	
 	jsc.Watcher.prototype.updateValue = function () {
 		this.value = this.object[this.command](this.arg);
 		if (typeof this.value === 'number') {
-			this.value = (Math.round(this.value * 10) / 10).toString();
+			this.value = (Math.round(this.value * 1000) / 1000).toString();
 		}
 	};
 	
@@ -1206,12 +1267,14 @@
 			};
 			this.hat[1] = keys[this.hat[1]] || this.hat[1].toUpperCase().charCodeAt(0);
 		}
+		this.colors = [];
 		this.wholeScript = this.script = this.compile(script.slice(1, script.length));
 		this.done = true;
 	};
 
 	jsc.Thread.prototype.eval = function (script) {
 		var self = this.object;
+		var colors = this.colors;
 		var c = jsc.castNumber;
 		return eval(script);
 	};
@@ -1269,6 +1332,8 @@
 			return 'self.changeVariable(' + this.compileArg(command[1]) + ',' + ((command[2] === 'changeVar:by:') ? 'true' : 'false') + ',' + this.compileArg(command[3], true) + ');';
 		case 'comment:':
 			return '';
+		case 'readVariable':
+			return 'self.allVariables[' + this.compileArg(command[1]) + '].val;';
 		}
 		return null;
 	};
@@ -1278,12 +1343,12 @@
 			return arg;
 		}
 		if (typeof arg === 'string') {
-			if (preferNumber) {
+			/*if (preferNumber) {
 				var num = jsc.castNumberOrNull(arg);
 				if (num !== null) {
 					return arg;
 				}
-			}
+			}*/
 			return '\'' + this.escapeString(arg) + '\'';
 		}
 		if (arg instanceof jsc.Sprite) {
@@ -1293,7 +1358,9 @@
 			return 'self.stage';
 		}
 		if (arg instanceof jsc.Color) {
-			return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
+			//return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
+			this.colors.push(arg);
+			return 'colors[' + (this.colors.length - 1) + ']';
 		}
 		if (!(arg instanceof Array)) {
 			return arg;
@@ -1503,20 +1570,23 @@
 	jsc.Thread.prototype[2] = function (block) {
 		var self = this;
 		if (this.temp === null) {
-			this.temp = block[1]().toString();
+			this.temp = block[1]().toString().toLowerCase();
 			this.object.stage.addBroadcastToQueue(this.temp);
 			this.evalCommandList(true);
 			return;
 		}
 		
-		var threads = this.object.stage.getAllThreads();
+		var threads = this.object.stage.eventsByName[this.temp];
 		
-		for (var i = 0; i < threads.length; i++) {
-			if (threads[i].hat[0] === 'EventHatMorph' && threads[i].hat[1].toLowerCase() === self.temp.toLowerCase() && !threads[i].done) {
-				this.evalCommandList(true);
-				return;
+		if (threads) {
+			for (var i = 0; i < threads.length; i++) {
+				if (!threads[i].done) {
+					this.evalCommandList(true);
+					return;
+				}
 			}
 		}
+		
 		this.reset();
 	};
 	
@@ -1596,6 +1666,7 @@
 			this.temp = null;
 		}
 		this.pushState();
+		this.yield = false;
 		this.script = commands || [];
 		this.index = -1;
 		this.timer = null;
@@ -1608,12 +1679,17 @@
 	};
 
 	jsc.Thread.prototype.pushState = function () {
-		this.stack.push([this.script, this.index, this.timer, this.temp]);
+		this.stack.push({
+			yield: this.yield,
+			script: this.script,
+			index: this.index,
+			timer: this.timer,
+			temp: this.temp
+		});
 	};
 
 	jsc.Thread.prototype.popState = function () {
-		if (this.stack.length == 0)
-		{
+		if (this.stack.length == 0) {
 			this.script = [];
 			this.index = 0;
 			this.done = this.yield = true;
@@ -1621,10 +1697,11 @@
 		}
 
 		var oldState = this.stack.pop();
-		this.script = oldState[0];
-		this.index = oldState[1];
-		this.timer = oldState[2];
-		this.temp = oldState[3];
+		this.yield = oldState.yield;
+		this.script = oldState.script;
+		this.index = oldState.index;
+		this.timer = oldState.timer;
+		this.temp = oldState.temp;
 	};
 
 
