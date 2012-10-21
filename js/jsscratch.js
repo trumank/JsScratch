@@ -1,6 +1,6 @@
 (function (jsc) {
 	// Player /////////////////////////////////////////////////
-	jsc.Player = function (url, canvas, autoplay, progress, load) {
+	jsc.Player = function (url, canvas, autoplay, message, progress, load) {
 		this.canvas = canvas;
 		this.url = url;
 		
@@ -12,19 +12,32 @@
 		};
 		
 		xhr.onload = function (e) {
-			self.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
-				return str += String.fromCharCode(charIndex);
-			}, '') : xhr.responseText);
-			if (autoplay) {
-				self.start();
+			if (xhr.readyState === 4 && xhr.status === 200) {
+				try {
+					self.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
+						return str += String.fromCharCode(charIndex);
+					}, '') : xhr.responseText);
+					if (autoplay) {
+						self.start();
+					}
+					load();
+				} catch (e) {
+					message.innerHTML = e.message;
+				}
+			} else {
+				message.innerHTML = xhr.status + ': ' + xhr.statusText;
 			}
-			load();
 		};
 		xhr.open('GET', url, true);
 		if (xhr.overrideMimeType) {
 			xhr.overrideMimeType("text/plain; charset=x-user-defined");
 		}
-		xhr.send();
+		try {
+			xhr.send();
+		} catch (e) {
+			xhr.onload();
+			message.innerHTML = e.message;
+		}
 	}
 
 	jsc.Player.prototype.read = function (data) {
@@ -201,9 +214,13 @@
 		bar.setAttribute('class', 'bar');
 		progress.appendChild(bar);
 		
+		var message = document.createElement('span');
+		message.setAttribute('class', 'message');
+		bar.appendChild(message);
+		
 		var flag = true;
 		
-		var player = new jsc.Player(url, canvas, autoplay, function (s) {
+		var player = new jsc.Player(url, canvas, autoplay, message, function (s) {
 			bar.style.width = (parseFloat(getComputedStyle(progress).width) - 2) * s + 'px';
 		}, function () {
 			progress.addEventListener('webkitTransitionEnd', function () {
@@ -219,17 +236,17 @@
 				}
 			}, false);
 			progress.className += ' fade';
+			
+			turbo.onclick = function () {
+				player.setTurbo(turbo.checked);
+			};
+			start.onclick = function () {
+				player.start();
+			};
+			stop.onclick = function () {
+				player.stop();
+			};
 		});
-		
-		turbo.onclick = function () {
-			player.setTurbo(turbo.checked);
-		};
-		start.onclick = function () {
-			player.start();
-		};
-		stop.onclick = function () {
-			player.stop();
-		};
 		
 		return [container, player];
 	}
