@@ -319,11 +319,11 @@
 			list.splice(Math.floor(Math.random() * list.length), 0, item);
 			return;
 		}
-		var i = Math.round(jsc.castNumber(line));
+		var i = Math.round(jsc.castNumber(line) - 1);
 		if (i > 0) {
-			if (i < list.length - 1) {
+			if (i < list.length) {
 				list.splice(i, 0, item);
-			} else {
+			} else if (i === list.length) {
 				list.push(item);
 			}
 		}
