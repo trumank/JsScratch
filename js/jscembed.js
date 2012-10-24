@@ -17,4 +17,6 @@
 
 	document.addEventListener('DOMContentLoaded', update, false);
 	document.addEventListener("DOMNodeInserted", update, false);
+	
+	update();
 }) ();
