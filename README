@@ -1,1 +1,18 @@
-Hello, World!
+JsScratch is a Sratch program viewer for Javscript and HTML
+
+JsScratch runs using the HTML5 canvas element JavaScript
+
+To use the player follow these steps:
+
+1. Place your .sb file (Sratch File) in the same folder as player.html
+
+2. Open player.html in a editor
+
+3. Change the string 'Pacman.sb' to your .sb name
+
+4. Open the Program in a browser and enjoy!
+
+For more information and demos please see http://jsscratch.co.cc/
+
+Scratch Programming Language: http://scratch.mit.edu/
+
