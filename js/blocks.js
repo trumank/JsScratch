@@ -319,11 +319,11 @@
 			list.splice(Math.floor(Math.random() * list.length), 0, item);
 			return;
 		}
-		var i = Math.round(jsc.castNumber(line) - 1);
+		var i = Math.round(jsc.castNumber(line));
 		if (i > 0) {
-			if (i < list.length) {
+			if (i < list.length - 1) {
 				list.splice(i, 0, item);
-			} else if (i === list.length) {
+			} else {
 				list.push(item);
 			}
 		}
@@ -383,7 +383,6 @@
 	
 	jsc.Sprite.prototype.setHeading = function (heading) {
 		this.direction = (jsc.castNumber(heading)) - 90;
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.pointTowards = function (object) {
@@ -399,17 +398,14 @@
 		}
 		var p = this.position.subtract(coords);
 		this.direction = Math.atan2(p.x, -p.y) * 180/Math.PI + 90;
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.turnRight = function (angle) {
 		this.direction += (jsc.castNumber(angle));
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.turnLeft = function (angle) {
 		this.direction -= (jsc.castNumber(angle));
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.gotoXy = function (x, y) {
@@ -509,23 +505,19 @@
 	jsc.Sprite.prototype.changeSizeBy = function (delta) {
 		var size = ((jsc.castNumber(delta)) / 100 + Math.max(this.scalePoint.x, this.scalePoint.y));
 		this.scalePoint = new jsc.Point(size, size);
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.setSizeTo = function (size) {
 		size = (jsc.castNumber(size)) / 100;
 		this.scalePoint = new jsc.Point(size, size);
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.changeStretchBy = function (delta) {
 		this.scalePoint.x += (jsc.castNumber(delta)) / 100;
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.setStretchTo = function (stretch) {
 		this.scalePoint.x = (jsc.castNumber(stretch)) / 100 * this.scalePoint.y;
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.scale = function () {
@@ -655,3 +647,4 @@
 		this.hidden = h;
 	};
 }) (jsc);
+
