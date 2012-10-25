@@ -1,6 +1,6 @@
 (function (jsc) {
 	// Player /////////////////////////////////////////////////
-	jsc.Player = function (url, canvas, autoplay, message, progress, load) {
+	jsc.Player = function (url, canvas, autoplay, progress, load) {
 		this.canvas = canvas;
 		this.url = url;
 		
@@ -12,32 +12,19 @@
 		};
 		
 		xhr.onload = function (e) {
-			if (xhr.readyState === 4 && xhr.status === 200) {
-				try {
-					self.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
-						return str += String.fromCharCode(charIndex);
-					}, '') : xhr.responseText);
-					if (autoplay) {
-						self.start();
-					}
-					load();
-				} catch (e) {
-					message.innerHTML = e.message;
-				}
-			} else {
-				message.innerHTML = xhr.status + ': ' + xhr.statusText;
+			self.read(window.VBArray ? new VBArray(xhr.responseBody).toArray().reduce(function(str, charIndex) {
+				return str += String.fromCharCode(charIndex);
+			}, '') : xhr.responseText);
+			if (autoplay) {
+				self.start();
 			}
+			load();
 		};
 		xhr.open('GET', url, true);
 		if (xhr.overrideMimeType) {
 			xhr.overrideMimeType("text/plain; charset=x-user-defined");
 		}
-		try {
-			xhr.send();
-		} catch (e) {
-			xhr.onload();
-			message.innerHTML = e.message;
-		}
+		xhr.send();
 	}
 
 	jsc.Player.prototype.read = function (data) {
@@ -214,13 +201,9 @@
 		bar.setAttribute('class', 'bar');
 		progress.appendChild(bar);
 		
-		var message = document.createElement('span');
-		message.setAttribute('class', 'message');
-		bar.appendChild(message);
-		
 		var flag = true;
 		
-		var player = new jsc.Player(url, canvas, autoplay, message, function (s) {
+		var player = new jsc.Player(url, canvas, autoplay, function (s) {
 			bar.style.width = (parseFloat(getComputedStyle(progress).width) - 2) * s + 'px';
 		}, function () {
 			progress.addEventListener('webkitTransitionEnd', function () {
@@ -236,17 +219,17 @@
 				}
 			}, false);
 			progress.className += ' fade';
-			
-			turbo.onclick = function () {
-				player.setTurbo(turbo.checked);
-			};
-			start.onclick = function () {
-				player.start();
-			};
-			stop.onclick = function () {
-				player.stop();
-			};
 		});
+		
+		turbo.onclick = function () {
+			player.setTurbo(turbo.checked);
+		};
+		start.onclick = function () {
+			player.start();
+		};
+		stop.onclick = function () {
+			player.stop();
+		};
 		
 		return [container, player];
 	}
@@ -595,10 +578,6 @@
 		
 		this.allVariables = this.variables;
 		
-		this.canvas.onclick = function () {
-			
-		};
-		
 		var self = this;
 		this.canvas.addEventListener('keydown', function (e) {
 			self.keydown(e);
@@ -654,10 +633,7 @@
 			stopwatch = new jsc.Stopwatch();
 		}
 		
-		if (this.animationFrame) {
-			this.addBroadcastToQueue('animationframe');
-			this.animationFrame = false;
-		}
+		this.addBroadcastToQueue('animationframe');
 		
 		do {
 			jsc.Stage.uber.step.call(this);
@@ -672,9 +648,6 @@
 
 	jsc.Stage.prototype.stepThreads = function () {
 		for (var i = 0; i < this.broadcastQueue.length; i++) {
-			if (this.broadcastQueue[i] === 'requestanimationframe') {
-				this.animationFrame = true;
-			}
 			var events = this.eventsByName[this.broadcastQueue[i]];
 			if (events) {
 				for (var j = 0; j < events.length; j++) {
@@ -835,7 +808,6 @@
 		this.pen.color = new jsc.Color(0, 0, 255);
 		this.pen.hsl = this.pen.color.getHSL();
 		this.pen.size = 1;
-		this.boundingChanged = true;
 	};
 	
 	jsc.Sprite.prototype.step = function () {
@@ -881,10 +853,6 @@
 	}
 	
 	jsc.Sprite.prototype.getBoundingBox = function () {
-		if (!this.boundingChanged) {
-			return this.boundingBox;
-		}
-		this.boundingChanged = false;
 		var p = this.position;
 		var rc = this.costume.rotationCenter;
 		
@@ -894,8 +862,8 @@
 		var xp2 = this.costume.extent().x - rc.x;
 		var yp2 = this.costume.extent().y - rc.y;
 		
-		if (this.rotationStyle !== 'normal' || this.scratchHeading() === 90) {
-			return this.boundingBox = new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
+		if (this.rotationStyle !== 'normal') {
+			return new jsc.Rectangle(xp1, yp1, xp2, yp2).scaleBy(this.scalePoint.multiplyBy(new jsc.Point(this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -1 : 1, 1))).translateBy(this.position).expandBy(1);
 		}
 		
 		var rad = Math.PI/180 * (this.direction);
@@ -921,7 +889,7 @@
 		var rx2 = Math.ceil(p.x + Math.max(x1, x2, x3, x4) * this.scalePoint.x);
 		var ry2 = Math.ceil(p.y + Math.max(y1, y2, y3, y4) * this.scalePoint.y);
 		
-		return this.boundingBox = new jsc.Rectangle(rx1, ry1, rx2, ry2);
+		return new jsc.Rectangle(rx1, ry1, rx2, ry2);
 	};
 	
 	jsc.Sprite.prototype.isTouching = function (obj) {
@@ -942,23 +910,18 @@
 			if (!b1.containsPoint(stage.mouse)) {
 				return false;
 			}
+			var bufferCtx1 = stage.bufferCtx1;
+			bufferCtx1.clearRect(0, 0, w, h);
+			var g = this.filters.ghost || 0;
+			this.filters.ghost = 0;
+			this.drawOn(bufferCtx1);
+			this.filters.ghost = g;
 			
-			var rc = this.costume.rotationCenter;
-			var angle = this.direction.mod(360) * Math.PI / 180;
-
-			var p = this.stage.mouse;
-
-			p = p.translateBy(new jsc.Point(-Math.round(this.position.x), -Math.round(this.position.y)));
-
-			p = p.scaleBy(new jsc.Point(1 / (this.rotationStyle === 'leftRight' && (this.direction - 90).mod(360) < 180 ? -this.scalePoint.x : this.scalePoint.x), 1 / this.scalePoint.y));
+			var mx = stage.mouse.x;
+			var my = stage.mouse.y;
 			
-			if (this.rotationStyle === 'normal') {
-				p = p.rotateBy(-angle);
-			}
-			
-			p = p.translateBy(new jsc.Point(rc.x - 1, rc.y - 1));
-
-			return this.costume.getImage().getContext('2d').getImageData(p.x, p.y, 1, 1).data[3] > 0;
+			var d = bufferCtx1.getImageData(mx, my, 1, 1).data;
+			return d[3] > 0;
 		} else {
 			var other = this.coerceSprite(obj);
 			if (!other || other.hidden) {
@@ -1103,7 +1066,7 @@
 			ctx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
 		}
 		
-		this.boundingChanged = this.hasMoved = true;
+		this.hasMoved = true;
 	};
 
 	jsc.Sprite.prototype.extent = function () {
@@ -1132,16 +1095,24 @@
 	};
 	
 	jsc.Sprite.prototype.updatePen = function () {
+		this.updatePenColor();
+		
 		var penCtx = this.stage.penCtx;
 		
 		penCtx.stroke();
 		
 		penCtx.lineWidth = this.pen.size;
-		var hsl = this.pen.hsl;
-		penCtx.strokeStyle = 'hsl(' + (hsl[0] * 360) + ', ' + (hsl[1] * 100) + '%, ' + (hsl[2] * 100) + '%)';
+		penCtx.strokeStyle = this.pen.color.toString();
 		
 		penCtx.beginPath();
 		penCtx.moveTo(this.position.x - 0.5, this.position.y - 0.5);
+	};
+	
+	jsc.Sprite.prototype.updatePenColor = function () {
+		var mod = this.pen.hsl.slice(0);
+		mod[0] = mod[0].mod(1);
+		mod[2] = mod[2].mod(2) >= 1 ? 1 - mod[2].mod(1) : mod[2].mod(1);
+		this.pen.color.setHSL(mod);
 	};
 	
 	
@@ -1284,14 +1255,12 @@
 			};
 			this.hat[1] = keys[this.hat[1]] || this.hat[1].toUpperCase().charCodeAt(0);
 		}
-		this.colors = [];
 		this.wholeScript = this.script = this.compile(script.slice(1, script.length));
 		this.done = true;
 	};
 
 	jsc.Thread.prototype.eval = function (script) {
 		var self = this.object;
-		var colors = this.colors;
 		var c = jsc.castNumber;
 		return eval(script);
 	};
@@ -1375,9 +1344,7 @@
 			return 'self.stage';
 		}
 		if (arg instanceof jsc.Color) {
-			//return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
-			this.colors.push(arg);
-			return 'colors[' + (this.colors.length - 1) + ']';
+			return 'new jsc.Color(' + arg.r + ',' + arg.g + ',' + arg.b + ',' + arg.a + ')';
 		}
 		if (!(arg instanceof Array)) {
 			return arg;
@@ -2049,3 +2016,4 @@
 
 	//[16777215, 0, 16777215, 8421504, 16711680, 65280, 255, 65535, 16776960, 16711935, 2105376, 4210752, 6316128, 10461087, 12566463, 14671839, 526344, 1052688, 1579032, 2631720, 3158064, 3684408, 4737096, 5263440, 5789784, 6842472, 7368816, 7895160, 8882055, 9408399, 9934743, 10987431, 11513775, 12040119, 13092807, 13619151, 14145495, 15198183, 15724527, 16250871, 0, 13056, 26112, 39168, 52224, 65280, 51, 13107, 26163, 39219, 52275, 65331, 102, 13158, 26214, 39270, 52326, 65382, 153, 13209, 26265, 39321, 52377, 65433, 204, 13260, 26316, 39372, 52428, 65484, 255, 13311, 26367, 39423, 52479, 65535, 3342336, 3355392, 3368448, 3381504, 3394560, 3407616, 3342387, 3355443, 3368499, 3381555]
 }) (jsc);
+
