@@ -616,6 +616,16 @@
 		this.canvas.addEventListener('mousedown', function (e) {
 			self.mousedown(e);
 		}, false);
+
+		this.canvas.addEventListener('touchmove', function (e) {
+			self.mousemove(e);
+		}, false);
+		this.canvas.addEventListener('touchend', function (e) {
+			self.mouseup(e);
+		}, false);
+		this.canvas.addEventListener('touchstart', function (e) {
+			self.mousedown(e);
+		}, false);
 		
 		for (var i = 0; i < this.sprites.length; i++) {
 			this.sprites[i].setup();
@@ -774,12 +784,15 @@
 	
 	jsc.Stage.prototype.mousemove = function (e) {
 		e.preventDefault();
-		this.mouse = new jsc.Point(e.offsetX || e.layerX, e.offsetY || e.layerY);
+		var bounds = this.canvas.getBoundingClientRect();
+		this.mouse = new jsc.Point((e.offsetX || e.layerX) * this.canvas.width / bounds.width, (e.offsetY || e.layerY) * this.canvas.height / bounds.height);
 	};
 	jsc.Stage.prototype.mouseup = function (e) {
+		e.preventDefault();
 		this.mouseDown = false;
 	};
 	jsc.Stage.prototype.mousedown = function (e) {
+		e.preventDefault();
 		this.mouseDown = true;
 		
 		for (var i = 0; i < this.children.length; i++) {
@@ -1451,6 +1464,9 @@
 			case '10 ^':
 				return 'Math.pow(10,' + v + ')';
 			}
+		
+		case 'answer':
+			return 'this.stage.answer';
 		}
 		return null;
 	};
@@ -1471,7 +1487,7 @@
 		return this.eval('(function(){return ' + this.compileArg(predicate) + '})');
 	};
 	
-	jsc.Thread.prototype.specialBlocks = ['doIf', 'doPlaySoundAndWait', 'doBroadcastAndWait', 'doIfElse', 'doRepeat', 'doUntil', 'doForever', 'doForeverIf', 'doReturn', 'doWaitUntil', 'wait:elapsed:from:', 'glideSecs:toX:y:elapsed:from:'];
+	jsc.Thread.prototype.specialBlocks = ['doIf', 'doPlaySoundAndWait', 'doBroadcastAndWait', 'doIfElse', 'doRepeat', 'doUntil', 'doForever', 'doForeverIf', 'doReturn', 'doWaitUntil', 'wait:elapsed:from:', 'glideSecs:toX:y:elapsed:from:', 'doAsk'];
 	
 	jsc.Thread.prototype.compileSpecial = function (special) {
 		var compiled;
@@ -1512,6 +1528,8 @@
 		case 'glideSecs:toX:y:elapsed:from:':
 			compiled = [this.compileReporter(special[1]), this.compileReporter(special[2]), this.compileReporter(special[3])];
 			break;
+		case 'doAsk':
+			
 		}
 		return [this.specialBlocks.indexOf(special[0])].concat(compiled);
 	};

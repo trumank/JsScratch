@@ -97,17 +97,17 @@ var jsc = new (function JsScratch() {});
 		if (this.depth == 16) {
 			var data = [];
 			var hw = Math.round((this.width) / 2);
-			var index, i, j;
+			var index = 0, i, j;
 			for (var y = 0; y < this.height; y++) {
 				i = 0;
 				for (var x = 0; x < this.width; x++) {
 					j = this.data[y * hw + Math.round(x / 2)] >> i & 0xFFFF;
-					index = (x + y * this.width) * 4;
-					array[index] = (j >> 10 & 0x1F) << 3;
-					array[index + 1] = (j >> 5 & 0x1F) << 3;
-					array[index + 2] = (j & 0x1F) << 3;
-					array[index + 3] = 0xFF;
-					i = i == 16 ? 0 : 16;
+					//index = (x + y * this.width) * 4;
+					array[index++] = (j >> 10 & 0x1F) << 3;
+					array[index++] = (j >> 5 & 0x1F) << 3;
+					array[index++] = (j & 0x1F) << 3;
+					array[index++] = 0xFF;
+					i = i === 16 ? 0 : 16;
 				}
 			}
 			this.data = data;

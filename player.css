@@ -7,6 +7,7 @@
 	width: 482px;
 	height: 23px;  
 	background-color: #EEE;
+	background-image: -moz-repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 50%, transparent 100%);      
 	background-image: -webkit-repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 50%, transparent 100%);          
 	border-radius: 10px 10px 0px 0px;
 }
