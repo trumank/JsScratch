@@ -1,170 +1,170 @@
 .player {
-	cursor: default;
-	overflow: hidden;
+    cursor: default;
+    overflow: hidden;
 }
 
 .player .header {
-	width: 482px;
-	height: 23px;  
-	background-color: #EEE;
-	background-image: -moz-repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 50%, transparent 100%);      
-	background-image: -webkit-repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 50%, transparent 100%);          
-	border-radius: 10px 10px 0px 0px;
+    width: 482px;
+    height: 23px;  
+    background-color: #EEE;
+    background-image: -moz-repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 50%, transparent 100%);      
+    background-image: -webkit-repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 50%, transparent 100%);          
+    border-radius: 10px 10px 0px 0px;
 }
 
 .player .subcon {
-	position: relative;
-	width: 480px;
-	height: 360px;
-	border: solid 1px black;
-	border-top: none;
-	overflow: hidden;
+    position: relative;
+    width: 480px;
+    height: 360px;
+    border: solid 1px black;
+    border-top: none;
+    overflow: hidden;
 }
 
 .player .title {
-	float: left;
-	font: 12px Arial, Helvetica, sans-serif;
-	margin: 3px 3px;
+    float: left;
+    font: 12px Arial, Helvetica, sans-serif;
+    margin: 3px 3px;
 }
 
 .player .progress {
-	position: absolute;
-	top: 130px;
-	left: 40px;
-	width: 400px;
-	height: 100px;
-	z-index: 10000;
-	
-	background-color: grey;
-	border: 1px solid grey;
-	box-shadow: inset 0 0 6px #000000;
-	border-radius: 12px;
-	
-	-webkit-transition: opacity 1s ease-in;
-	-moz-transition: opacity 1s ease-in;
+    position: absolute;
+    top: 130px;
+    left: 40px;
+    width: 400px;
+    height: 100px;
+    z-index: 10000;
+    
+    background-color: grey;
+    border: 1px solid grey;
+    box-shadow: inset 0 0 6px #000000;
+    border-radius: 12px;
+    
+    -webkit-transition: opacity 1s ease-in;
+    -moz-transition: opacity 1s ease-in;
 }
 
 .player .progress .message {
-	color: red;
-	font-family: Verdana;
-	font-size: 2em;
-	font-weight: bold;
-	position: absolute;
-	top: 28px;
-	left: 0px;
-	width: 100%;
-	text-align: center;	
+    color: red;
+    font-family: Verdana;
+    font-size: 2em;
+    font-weight: bold;
+    position: absolute;
+    top: 28px;
+    left: 0px;
+    width: 100%;
+    text-align: center; 
 }
 
 .player .fade {
-	opacity: 0;
+    opacity: 0;
 }
 
 .player .progress .bar {
-	width: 0px;
-	height: 98px;
-	
-	margin: 1px 1px;
+    width: 0px;
+    height: 98px;
+    
+    margin: 1px 1px;
 
-	border-radius: 12px;
-	box-shadow: inset 0 0 6px #000000;
-	
-	background-color: orange;
-	background-image: -moz-repeating-linear-gradient(45deg, rgba(255,255,255,.5), rgba(255,255,255,.5) 10px, transparent 10px, transparent 20px);
-	background-image: -webkit-repeating-linear-gradient(45deg, rgba(255,255,255,.5), rgba(255,255,255,.5) 10px, transparent 10px, transparent 20px);
-	background-size: 28px 100%;
-	
-	-moz-animation-duration: 1s;
-	-moz-animation-name: loading;
-	-moz-animation-iteration-count: infinite;
-	-moz-animation-timing-function: linear;
-	
-	-webkit-animation-duration: 1s;
-	-webkit-animation-name: loading;
-	-webkit-animation-iteration-count: infinite;
-	-webkit-animation-timing-function: linear;
-	
-	-webkit-transition: width 1s ease-in-out;
+    border-radius: 12px;
+    box-shadow: inset 0 0 6px #000000;
+    
+    background-color: orange;
+    background-image: -moz-repeating-linear-gradient(45deg, rgba(255,255,255,.5), rgba(255,255,255,.5) 10px, transparent 10px, transparent 20px);
+    background-image: -webkit-repeating-linear-gradient(45deg, rgba(255,255,255,.5), rgba(255,255,255,.5) 10px, transparent 10px, transparent 20px);
+    background-size: 28px 100%;
+    
+    -moz-animation-duration: 1s;
+    -moz-animation-name: loading;
+    -moz-animation-iteration-count: infinite;
+    -moz-animation-timing-function: linear;
+    
+    -webkit-animation-duration: 1s;
+    -webkit-animation-name: loading;
+    -webkit-animation-iteration-count: infinite;
+    -webkit-animation-timing-function: linear;
+    
+    -webkit-transition: width 1s ease-in-out;
 }
 
 @-moz-keyframes loading {
-	from {
-		background-position: 0px 0px;
-	}
+    from {
+        background-position: 0px 0px;
+    }
 
-	to {
-		background-position: 28px 0px;
-	}
+    to {
+        background-position: 28px 0px;
+    }
 }
 
 @-webkit-keyframes loading {
-	from {
-		background-position: 0px 0px;
-	}
+    from {
+        background-position: 0px 0px;
+    }
 
-	to {
-		background-position: 28px 0px;
-	}
+    to {
+        background-position: 28px 0px;
+    }
 }
 
 .player .button {
-	position: relative;
-	float: right;
-	margin: 0px 5px;
-	background: url('icons.png');
+    position: relative;
+    float: right;
+    margin: 0px 5px;
+    background: url('icons.png');
 }
 
 .player .stop {
-	background-position: -17px 0px;
-	width: 17px;
-	height: 17px;
-	top: 3px;
+    background-position: -17px 0px;
+    width: 17px;
+    height: 17px;
+    top: 3px;
 }
 
 .player .stop:hover {
-	background-position: -17px -17px;
+    background-position: -17px -17px;
 }
 
 .player .start {
-	background-position: -17px -34px;
-	width: 20px;
-	height: 17px;
-	top: 3px;
+    background-position: -17px -34px;
+    width: 20px;
+    height: 17px;
+    top: 3px;
 }
 
 .player .start:hover {
-	background-position: -17px -51px;
+    background-position: -17px -51px;
 }
 
 .player input[type="checkbox"] {
-	width: 17px;
-	height: 17px;
-	top: 3px;
-	background-position: 0px -34px;
+    width: 17px;
+    height: 17px;
+    top: 3px;
+    background-position: 0px -34px;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
 }
 
 .player input[type="checkbox"]:hover {
-	background-position: 0px -51px;
+    background-position: 0px -51px;
 }
 
 .player input[type="checkbox"]:checked {
-	background-position: 0px 0px;
+    background-position: 0px 0px;
 }
 
 .player input[type="checkbox"]:checked:hover {
-	background-position: 0px -17px;
+    background-position: 0px -17px;
 }
 
 .player .status {
-	float: right;
-	font: bold 10px Arial, Helvetica, sans-serif bold;
-	color: #FFFF00;
-	margin: 5px 3px;
+    float: right;
+    font: bold 10px Arial, Helvetica, sans-serif bold;
+    color: #FFFF00;
+    margin: 5px 3px;
 }
 
 .player canvas {
-	position: relative;
+    position: relative;
 }
