@@ -21,12 +21,11 @@
                 vars[parts[0]] = parts[1];
             });
         }
-        if (vars['project']) {
-            var player = document.createElement('div');
-            player.setAttribute('class', 'project');
-            player.setAttribute('project', vars['project']);
-            document.body.appendChild(player);
-        }
+        var player = document.createElement('div');
+        player.setAttribute('class', 'project');
+        player.setAttribute('autoplay', 'true');
+        player.setAttribute('project', vars['project'] || 'default.sb');
+        document.body.appendChild(player);
     </script>
   </body>
 </html>
