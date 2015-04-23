@@ -2,7 +2,7 @@
     var done = [];
     
     function update() {
-        var divs = document.querySelectorAll('div[project]');
+        var divs = document.querySelectorAll('div[class=project]');
         var i = divs.length;
         while (i--) {
             if (done.indexOf(divs[i]) === -1) {

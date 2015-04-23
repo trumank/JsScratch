@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>JsScratch</title>
+    <link href="player.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="js/datatypes.js"></script>
+    <script type="text/javascript" src="js/jsscratch.js"></script>
+    <script type="text/javascript" src="js/blocks.js"></script>
+    <script type="text/javascript" src="js/scratchio.js"></script>
+    <script type="text/javascript" src="js/jdataview.js"></script>
+    <script type="text/javascript" src="js/jscembed.js"></script>
+  </head>
+  <body>
+    <script type="text/javascript">
+        var vars = Object.create(null);
+        var parameters = location.search.substr(1).split('&');
+        if (parameters) {
+            parameters.forEach(function(parameter) {
+                var parts = unescape(parameter).split('=');
+                vars[parts[0]] = parts[1];
+            });
+        }
+        if (vars['project']) {
+            var player = document.createElement('div');
+            player.setAttribute('class', 'project');
+            player.setAttribute('project', vars['project']);
+            document.body.appendChild(player);
+        }
+    </script>
+  </body>
+</html>

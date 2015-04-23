@@ -171,6 +171,10 @@
     jsc.createPlayer = function (url, autoplay) {
         var container = document.createElement('div');
         container.setAttribute('class', 'player');
+
+        container.addEventListener('selectstart', function (e) {
+            e.preventDefault();
+        });
         
         var header = document.createElement('div');
         header.setAttribute('class', 'header');
